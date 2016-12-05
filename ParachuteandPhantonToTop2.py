@@ -616,6 +616,8 @@ class Parachute:
         file.close()
 
     def _file_write_surface_top(self):
+        mask = self.structure_mask
+
         file = open('surface.top','w')
         id = 1
         file.write('SURFACETOPO 1 SURFACE_THICKNESS %f\n' %(self.thickness))
@@ -623,14 +625,10 @@ class Parachute:
         id = self._write_canopy_surface(file,topo,id)
         file.write('*\n')
 
-        file.write('SURFACETOPO 2 \n')
-        topo = 3;
-        id = self._write_cable_surface(file,topo,id,self.embeddedsurface_mask)
-        file.write('*\n')
 
         file.write('SURFACETOPO 3 \n')
         topo = 3;
-        id = self._write_capsule_surface(file,topo,id,self.embeddedsurface_mask)
+        id = self._write_capsule_surface(file,topo,id,mask)
         file.write('*\n')
 
         file.close()
@@ -815,10 +813,10 @@ class Parachute:
 
 cl = 0.03
 #num,x,y = candle()
-#num,x,y = hilbertCurve(6,1,1)
-#nPoints, xArray, yArray = curveRefine(num,x,y, cl,True)
-nPoints, xArray, yArray = straightLine(5)
-parachute_mesh = Parachute(nPoints, xArray, yArray, cable_n=5, cable_k=4, cable_r=5.0e-3, layer_n=4, capsule_y=-3.0)
+num,x,y = hilbertCurve(3,1,1)
+nPoints, xArray, yArray = curveRefine(num,x,y, cl,True)
+#nPoints, xArray, yArray = straightLine(5)
+parachute_mesh = Parachute(nPoints, xArray, yArray, cable_n=50, cable_k=6, cable_r=5.0e-3, layer_n=4, capsule_y=-3.0)
 
 parachute_mesh._file_write_structure_top()
 
