@@ -26,7 +26,7 @@ def sinCurve(plotOrNot):
 #int  nPoints, number of nodes
 #int* xArray, x coordinates of these nodes
 #int* yArray, y coordinates of these nodes
-def straightLine():
+def straightLine( ):
     nPoints = 100;
     xArray = np.linspace(-0.5,0.5,num=nPoints)
     yArray = 0*xArray
@@ -115,7 +115,7 @@ def refinedHilbertCurve(order, cl, scale, plotOrNot):
 
     num,x,y = hilbertCurve(order,scale)
     ds = np.sqrt((y[1]-y[0])**2 + (x[1] - x[0])**2)
-    n = max(np.ceil(ds/cl), 2) #n small segments on each segment
+    n = max(np.ceil(ds/cl), 1) #n small segments on each segment
     nPoints = int((num-1)*n + 1)
     xArray = np.zeros(nPoints)
     yArray = np.zeros(nPoints)
@@ -174,7 +174,7 @@ def curveRefine(num, xx, yy,cl, plotOrNot):
     numArray = np.zeros(num,np.int32)
     for i in range(num-1):
         ds = np.sqrt((yy[i+1]-yy[i])**2 + (xx[i+1] - xx[i])**2)
-        n = max(np.ceil(ds/cl), 2) #n small segments on each segment
+        n = max(np.ceil(ds/cl), 1) #n small segments on each segment
         numArray[i+1] = numArray[i] + n;
 
     nPoints = numArray[-1]+1
@@ -197,75 +197,163 @@ def curveRefine(num, xx, yy,cl, plotOrNot):
 #Start to generate AEROS and Mathcer input file
 
 
-#cl = 0.01
+cl = 0.01
 #num,x,y = candle()
-#num,x,y = hilbertCurve(3,1,0.25)
-#nPoints, xArray, yArray = curveRefine(num,x,y, 0.01,True)
-nPoints, xArray, yArray = straightLine()
+num,x,y = hilbertCurve(2,0.5,0.5)
+nPoints, xArray, yArray = curveRefine(num,x,y, cl,True)
+#nPoints, xArray, yArray = straightLine( )
 
-#nPoints, xArray, yArray = hatShape()
 
+
+
+#############################################################################################################################
+#For the canopy, it has nPoints-1 segments and is extruded 4 layers in the z direction,  the points are labeled as
+#5 10 15 ... 5*nPoints
+#4 9  14 ... 5*nPoints-1
+#3 8  13 ... 5*nPoints-2
+#2 7  12 ... 5*nPoints-3
+#1 6  11 ... 5*nPoints-4
+#For the cables, it has mPoints segments, 4 nodes connecting these cables are 1 , 4 , 4*nPoins - 3 , 4*nPoints, on the cables these nodes are
+# 1 ,            5 ,            5*nPoins - 4 ,   5*nPoints,
+# 5*nPoints + 1, 5*nPoints + 2, 5*nPoints + 3,   5*nPoints + 4,
+# 5*nPoints + 5, 5*nPoints + 6, 5*nPoints + 7,   5*nPoints + 8,
+# ......
+# 5*nPoints + 4*mPoints - 7, 5*nPoints + 4*mPoints - 6, 5*nPoints + 4*mPoints - 5,   5*nPoints + 4*mPoints - 4,
+# 5*nPoints + 4*mPoints - 3, 5*nPoints + 4*mPoints - 3, 5*nPoints + 4*mPoints - 3,   5*nPoints + 4*mPoints - 3,
+# For the payload, it is a square panel
+# 5*nPoints + 4*mPoints - 2, 5*nPoints + 4*mPoints - 1, 5*nPoints + 4*mPoints,   5*nPoints + 4*mPoints + 1
 commonDataInclude = open('common.data.include','w')
 
 # NodeId, x coordinate, y coordinate, z coordinate
 commonDataInclude.write('NODES\n')
+# First part for the canopy
 for i in range(nPoints):
     # i = 0, 1, 2 ..n-1
-    commonDataInclude.write('%d   %f  %f  %f \n' %(4*i+1, xArray[i], yArray[i], 0.0))
-    commonDataInclude.write('%d   %f  %f  %f \n' %(4*i+2, xArray[i], yArray[i], 0.01))
-    commonDataInclude.write('%d   %f  %f  %f \n' %(4*i+3, xArray[i], yArray[i], 0.02))
-    commonDataInclude.write('%d   %f  %f  %f \n' %(4*i+4, xArray[i], yArray[i], 0.03))
+    commonDataInclude.write('%d   %f  %f  %f \n' %(5*i+1, xArray[i], yArray[i], 0.0))
+    commonDataInclude.write('%d   %f  %f  %f \n' %(5*i+2, xArray[i], yArray[i], cl))
+    commonDataInclude.write('%d   %f  %f  %f \n' %(5*i+3, xArray[i], yArray[i], 2*cl))
+    commonDataInclude.write('%d   %f  %f  %f \n' %(5*i+4, xArray[i], yArray[i], 3*cl))
+    commonDataInclude.write('%d   %f  %f  %f \n' %(5*i+5, xArray[i], yArray[i], 4*cl))
+# Second part for 4 cables
+cStart=np.array([[xArray[0],yArray[0],0.0],[xArray[0],yArray[0],4*cl],[xArray[nPoints-1],yArray[nPoints-1],0.0],[xArray[nPoints-1],yArray[nPoints-1],4*cl]])
+payloadPos = -3.0;
+cEnd=np.array([0.0,payloadPos,2*cl])
+#mPoints = int(np.linalg.norm(cStart[0,:] - cEnd)/0.01);
+mPoints = 1
+for i in range(mPoints-1):
+    # i = 0, 1, 2 ..m-2
+    for j in range(4):
+        c = cStart[j,:] + (cEnd - cStart[j,:])*(i+1.0)/mPoints;
+        commonDataInclude.write('%d   %f  %f  %f \n' %(5*nPoints+4*i+j+1, c[0], c[1], c[2]))
+commonDataInclude.write('%d   %f  %f  %f \n' %(5*nPoints + 4*mPoints - 3, cEnd[0], cEnd[1], cEnd[2]))
+# Third part for payload
+commonDataInclude.write('%d   %f  %f  %f \n' %(5*nPoints + 4*mPoints - 2, -2*cl, payloadPos, 0.0))
+commonDataInclude.write('%d   %f  %f  %f \n' %(5*nPoints + 4*mPoints - 1, -2*cl, payloadPos, 4*cl))
+commonDataInclude.write('%d   %f  %f  %f \n' %(5*nPoints + 4*mPoints    ,  2*cl, payloadPos, 0.0))
+commonDataInclude.write('%d   %f  %f  %f \n' %(5*nPoints + 4*mPoints + 1,  2*cl, payloadPos, 4*cl))
+
 commonDataInclude.write('*\n')
 
 
 # TopologyId, finite element type, node1Id, node2Id, node3Id ..
 # (some element type has more nodes, but 129 is 3 nodes membrane element)
+# First part for the canopy
 topology = 129;
 commonDataInclude.write('TOPOLOGY\n')
 for i in range(nPoints-1):
-    commonDataInclude.write('%d   %d  %d  %d %d \n' %(6*i+1, topology,  4*i+1, 4*i+6, 4*i+2))
-    commonDataInclude.write('%d   %d  %d  %d %d \n' %(6*i+2, topology,  4*i+1, 4*i+5, 4*i+6))
-    commonDataInclude.write('%d   %d  %d  %d %d \n' %(6*i+3, topology,  4*i+2, 4*i+7, 4*i+3))
-    commonDataInclude.write('%d   %d  %d  %d %d \n' %(6*i+4, topology,  4*i+2, 4*i+6, 4*i+7))
-    commonDataInclude.write('%d   %d  %d  %d %d \n' %(6*i+5, topology,  4*i+3, 4*i+8, 4*i+4))
-    commonDataInclude.write('%d   %d  %d  %d %d \n' %(6*i+6, topology,  4*i+3, 4*i+7, 4*i+8))
-commonDataInclude.write('*\n')
+    if(i <= (nPoints-1)/2):
+        commonDataInclude.write('%d   %d  %d  %d %d \n' %(8*i+1, topology,  5*i+1, 5*i+6, 5*i+7))
+        commonDataInclude.write('%d   %d  %d  %d %d \n' %(8*i+2, topology,  5*i+1, 5*i+7, 5*i+2))
+        commonDataInclude.write('%d   %d  %d  %d %d \n' %(8*i+3, topology,  5*i+2, 5*i+7, 5*i+8))
+        commonDataInclude.write('%d   %d  %d  %d %d \n' %(8*i+4, topology,  5*i+2, 5*i+8, 5*i+3))
+        commonDataInclude.write('%d   %d  %d  %d %d \n' %(8*i+5, topology,  5*i+3, 5*i+8, 5*i+4))
+        commonDataInclude.write('%d   %d  %d  %d %d \n' %(8*i+6, topology,  5*i+4, 5*i+8, 5*i+9))
+        commonDataInclude.write('%d   %d  %d  %d %d \n' %(8*i+7, topology,  5*i+4, 5*i+9, 5*i+5))
+        commonDataInclude.write('%d   %d  %d  %d %d \n' %(8*i+8, topology,  5*i+5, 5*i+9, 5*i+10))
+    else:
+        commonDataInclude.write('%d   %d  %d  %d %d \n' %(8*i+1, topology,  5*i+1, 5*i+6, 5*i+2))
+        commonDataInclude.write('%d   %d  %d  %d %d \n' %(8*i+2, topology,  5*i+2, 5*i+6, 5*i+7))
+        commonDataInclude.write('%d   %d  %d  %d %d \n' %(8*i+3, topology,  5*i+2, 5*i+7, 5*i+3))
+        commonDataInclude.write('%d   %d  %d  %d %d \n' %(8*i+4, topology,  5*i+3, 5*i+7, 5*i+8))
+        commonDataInclude.write('%d   %d  %d  %d %d \n' %(8*i+5, topology,  5*i+4, 5*i+3, 5*i+9))
+        commonDataInclude.write('%d   %d  %d  %d %d \n' %(8*i+6, topology,  5*i+3, 5*i+8, 5*i+9))
+        commonDataInclude.write('%d   %d  %d  %d %d \n' %(8*i+7, topology,  5*i+5, 5*i+4, 5*i+10))
+        commonDataInclude.write('%d   %d  %d  %d %d \n' %(8*i+8, topology,  5*i+4, 5*i+9, 5*i+10))
+# Second part for 4 cables
+# For the cables, segment ids are
+# 8*nPoints-7,    8*nPoints-6,    8*nPoints-5,      8*nPoints-4
+# 8*nPoints-3,    8*nPoints-2,    8*nPoints-1,      8*nPoints
+# ......
+# 8*nPoints + 4*mPoints-11,    8*nPoints + 4*mPoints - 10,    8*nPoints + 4*mPoints - 9,      8*nPoints + 4*mPoints - 8
+cableTopology = 203
+for i in range(mPoints):
+    if(i == 0):
+        a = [1,5,5*nPoints-4,5*nPoints]
+    else:
+        a = [5*nPoints + 4*i-3,5*nPoints + 4*i-2,5*nPoints + 4*i-1,5*nPoints + 4*i]
+    if(i == mPoints-1):
+        b = [5*nPoints + 4*mPoints-3,5*nPoints+4*mPoints-3,5*nPoints+4*mPoints-3,5*nPoints+4*mPoints-3]
+    else:
+        b = [5*nPoints + 4*i+1,5*nPoints + 4*i+2,5*nPoints + 4*i+3,5*nPoints + 4*i+4]
+    for k in range(4):
+
+        commonDataInclude.write('%d   %d   %d   %d\n' %(8*nPoints + 4*i - 7 + k, cableTopology,  a[k],b[k]))
+
+# Third part for payload(4 elements)
+# 8*nPoints + 4*mPoints-7,    8*nPoints + 4*mPoints-6,    8*nPoints + 4*mPoints-5,      8*nPoints + 4*mPoints-4
+payloadTopology = 129
+commonDataInclude.write('%d   %d  %d  %d %d \n' %(8*nPoints + 4*mPoints -7, payloadTopology,  5*nPoints + 4*mPoints - 2, 5*nPoints + 4*mPoints - 1, 5*nPoints + 4*mPoints - 3))
+commonDataInclude.write('%d   %d  %d  %d %d \n' %(8*nPoints + 4*mPoints -6, payloadTopology,  5*nPoints + 4*mPoints - 1, 5*nPoints + 4*mPoints + 1, 5*nPoints + 4*mPoints - 3))
+commonDataInclude.write('%d   %d  %d  %d %d \n' %(8*nPoints + 4*mPoints -5, payloadTopology,  5*nPoints + 4*mPoints + 1, 5*nPoints + 4*mPoints    , 5*nPoints + 4*mPoints - 3))
+commonDataInclude.write('%d   %d  %d  %d %d \n' %(8*nPoints + 4*mPoints -4, payloadTopology,  5*nPoints + 4*mPoints - 2, 5*nPoints + 4*mPoints    , 5*nPoints + 4*mPoints - 3))
+
+
 
 # elementId, element attribute(material) id
 attributes = 1;
 commonDataInclude.write('ATTRIBUTS\n')
 for i in range(nPoints-1):
-    commonDataInclude.write('%d   %d \n' %(6*i+1, attributes))
-    commonDataInclude.write('%d   %d \n' %(6*i+2, attributes))
-    commonDataInclude.write('%d   %d \n' %(6*i+3, attributes))
-    commonDataInclude.write('%d   %d \n' %(6*i+4, attributes))
-    commonDataInclude.write('%d   %d \n' %(6*i+5, attributes))
-    commonDataInclude.write('%d   %d \n' %(6*i+6, attributes))
+    commonDataInclude.write('%d   %d \n' %(8*i+1, attributes))
+    commonDataInclude.write('%d   %d \n' %(8*i+2, attributes))
+    commonDataInclude.write('%d   %d \n' %(8*i+3, attributes))
+    commonDataInclude.write('%d   %d \n' %(8*i+4, attributes))
+    commonDataInclude.write('%d   %d \n' %(8*i+5, attributes))
+    commonDataInclude.write('%d   %d \n' %(8*i+6, attributes))
+    commonDataInclude.write('%d   %d \n' %(8*i+7, attributes))
+    commonDataInclude.write('%d   %d \n' %(8*i+8, attributes))
+cableAttributes = 2;
+for i in range(mPoints):
+    commonDataInclude.write('%d   %d \n' %(8*nPoints-8 + 4*i + 1, cableAttributes))
+    commonDataInclude.write('%d   %d \n' %(8*nPoints-8 + 4*i + 2, cableAttributes))
+    commonDataInclude.write('%d   %d \n' %(8*nPoints-8 + 4*i + 3, cableAttributes))
+    commonDataInclude.write('%d   %d \n' %(8*nPoints-8 + 4*i + 4, cableAttributes))
+payloadAttributes = 1;
+for i in range(4):
+    commonDataInclude.write('%d   %d \n' %(8*nPoints + 4*mPoints -7 + i, payloadAttributes))
+
 commonDataInclude.write('*\n')
 
 
-
+commonDataInclude.close()
+###############################################################################################################################################################
+aerosMeshInclude = open('aeros.mesh.include','w')
 # Material specifies material
 # material id, ....
 youngsModulus = 6.08e8
 poissonRatio = 0.4
 density = 1153.4
 thickness = 7.62e-5
-commonDataInclude.write('MATERIAL\n')
-commonDataInclude.write('1 0 %f %f %f 0 0 %f 0 0 0 0 0 0 0\n' %(youngsModulus, poissonRatio, density, thickness))
-commonDataInclude.write('*\n')
+aerosMeshInclude.write('MATERIAL\n')
+aerosMeshInclude.write('1 0 %f %f %f 0 0 %f 0 0 0 0 0 0 0\n' %(youngsModulus, poissonRatio, density, thickness))
+stiffness = 4.0e3
+aerosMeshInclude.write('2  SPRINGMAT  %f\n' %(stiffness))
+aerosMeshInclude.write('*\n')
 
-
-
-
-
-commonDataInclude.close()
-
-aerosMeshInclude = open('aeros.mesh.include','w')
 # MATUSAGE specifies material
 # start element number, end element number, material id
 aerosMeshInclude.write('MATUSAGE\n')
-aerosMeshInclude.write('1 %d 1\n' %(6*nPoints - 6))
+aerosMeshInclude.write('1 %d 1\n' %(8*nPoints - 8))
+#aerosMeshInclude.write('%d %d 2\n' %(8*nPoints - 7,8*nPoints + 4*mPoints - 8))
 aerosMeshInclude.write('*\n')
 
 # MATLAW can specify nonlinear property of the material
@@ -275,67 +363,157 @@ aerosMeshInclude.write('1 HyperElasticPlaneStress %f %f %f %f\n' %(density, youn
 aerosMeshInclude.write('*\n')
 
 
-# Pressure
-#aerosMeshInclude.write('PRESSURE\n')
-#aerosMeshInclude.write('1 %d %f\n' %(6*i+6, -4000.0))
-#aerosMeshInclude.write('*\n')
-#aerosMeshInclude.write('DISP\n')
+#Pressure
+aerosMeshInclude.write('PRESSURE\n')
+aerosMeshInclude.write('1 %d %f\n' %(8*nPoints-8, -4000.0))
+aerosMeshInclude.write('*\n')
+
+
+aerosMeshInclude.write('DISP\n')
 for freedom in range(1,7):
-    aerosMeshInclude.write('%d %d 0.0\n' %(1, freedom))
-    aerosMeshInclude.write('%d %d 0.0\n' %(2, freedom))
-    aerosMeshInclude.write('%d %d 0.0\n' %(3, freedom))
-    aerosMeshInclude.write('%d %d 0.0\n' %(4, freedom))
-    aerosMeshInclude.write('%d %d 0.0\n' %(4*nPoints-3, freedom))
-    aerosMeshInclude.write('%d %d 0.0\n' %(4*nPoints-2, freedom))
-    aerosMeshInclude.write('%d %d 0.0\n' %(4*nPoints-1, freedom))
-    aerosMeshInclude.write('%d %d 0.0\n' %(4*nPoints, freedom))
+    #Fix payload
+    aerosMeshInclude.write('%d %d 0.0\n' %(5*nPoints+4*mPoints-3, freedom))
+    aerosMeshInclude.write('%d %d 0.0\n' %(5*nPoints+4*mPoints-2, freedom))
+    aerosMeshInclude.write('%d %d 0.0\n' %(5*nPoints+4*mPoints-1, freedom))
+    aerosMeshInclude.write('%d %d 0.0\n' %(5*nPoints+4*mPoints  , freedom))
+    aerosMeshInclude.write('%d %d 0.0\n' %(5*nPoints+4*mPoints+1, freedom))
 
 aerosMeshInclude.write('* symmetry planes\n')
-aerosMeshInclude.write('%d thru %d step %d 3 0.0\n' %(1, 4*nPoints-3, 4))
-aerosMeshInclude.write('%d thru %d step %d 4 0.0\n' %(1, 4*nPoints-3, 4))
-aerosMeshInclude.write('%d thru %d step %d 5 0.0\n' %(1, 4*nPoints-3, 4))
-aerosMeshInclude.write('%d thru %d step %d 3 0.0\n' %(4, 4*nPoints, 4))
-aerosMeshInclude.write('%d thru %d step %d 4 0.0\n' %(4, 4*nPoints, 4))
-aerosMeshInclude.write('%d thru %d step %d 5 0.0\n' %(4, 4*nPoints, 4))
+aerosMeshInclude.write('%d thru %d step %d 3 0.0\n' %(1, 5*nPoints-4, 5))
+aerosMeshInclude.write('%d thru %d step %d 4 0.0\n' %(1, 5*nPoints-4, 5))
+aerosMeshInclude.write('%d thru %d step %d 5 0.0\n' %(1, 5*nPoints-4, 5))
+aerosMeshInclude.write('%d thru %d step %d 3 0.0\n' %(5, 5*nPoints, 5))
+aerosMeshInclude.write('%d thru %d step %d 4 0.0\n' %(5, 5*nPoints, 5))
+aerosMeshInclude.write('%d thru %d step %d 5 0.0\n' %(5, 5*nPoints, 5))
 aerosMeshInclude.close()
 
-
-
-
-
+######################################################################################################################################################################
 structureTop = open('structure.top','w')
 
 structureTop.write('Nodes nodeset\n')
 for i in range(nPoints):
     # i = 0, 1, 2 ..n-1
-    structureTop.write('    %d   %f  %f  %f \n' %(4*i+1, xArray[i], yArray[i], 0.0))
-    structureTop.write('    %d   %f  %f  %f \n' %(4*i+2, xArray[i], yArray[i], 0.01))
-    structureTop.write('    %d   %f  %f  %f \n' %(4*i+3, xArray[i], yArray[i], 0.02))
-    structureTop.write('    %d   %f  %f  %f \n' %(4*i+4, xArray[i], yArray[i], 0.03))
+    structureTop.write('%d   %f  %f  %f \n' %(5*i+1, xArray[i], yArray[i], 0.0))
+    structureTop.write('%d   %f  %f  %f \n' %(5*i+2, xArray[i], yArray[i], cl))
+    structureTop.write('%d   %f  %f  %f \n' %(5*i+3, xArray[i], yArray[i], 2*cl))
+    structureTop.write('%d   %f  %f  %f \n' %(5*i+4, xArray[i], yArray[i], 3*cl))
+    structureTop.write('%d   %f  %f  %f \n' %(5*i+5, xArray[i], yArray[i], 4*cl))
+# Second part for 4 cables
+for i in range(mPoints-1):
+    # i = 0, 1, 2 ..m-2
+    for j in range(4):
+        c = cStart[j,:] + (cEnd - cStart[j,:])*(i+1.0)/mPoints;
+        structureTop.write('%d   %f  %f  %f \n' %(5*nPoints+4*i+j+1, c[0], c[1], c[2]))
+structureTop.write('%d   %f  %f  %f \n' %(5*nPoints+4*mPoints-3, cEnd[0], cEnd[1], cEnd[2]))
+# Third part for payload
+structureTop.write('%d   %f  %f  %f \n' %(5*nPoints + 4*mPoints - 2, -2*cl, payloadPos, 0.0))
+structureTop.write('%d   %f  %f  %f \n' %(5*nPoints + 4*mPoints - 1, -2*cl, payloadPos, 4*cl))
+structureTop.write('%d   %f  %f  %f \n' %(5*nPoints + 4*mPoints    ,  2*cl, payloadPos, 0.0))
+structureTop.write('%d   %f  %f  %f \n' %(5*nPoints + 4*mPoints + 1,  2*cl, payloadPos, 4*cl))
 
 topology = 4;
-structureTop.write('Elements SlipMovingSurface_8 using nodeset\n')
+structureTop.write('Elements StickMovingSurface using nodeset\n')
 for i in range(nPoints-1):
-    structureTop.write('    %d   %d  %d  %d %d \n' %(6*i+1, topology,  4*i+1, 4*i+6, 4*i+2))
-    structureTop.write('    %d   %d  %d  %d %d \n' %(6*i+2, topology,  4*i+1, 4*i+5, 4*i+6))
-    structureTop.write('    %d   %d  %d  %d %d \n' %(6*i+3, topology,  4*i+2, 4*i+7, 4*i+3))
-    structureTop.write('    %d   %d  %d  %d %d \n' %(6*i+4, topology,  4*i+2, 4*i+6, 4*i+7))
-    structureTop.write('    %d   %d  %d  %d %d \n' %(6*i+5, topology,  4*i+3, 4*i+8, 4*i+4))
-    structureTop.write('    %d   %d  %d  %d %d \n' %(6*i+6, topology,  4*i+3, 4*i+7, 4*i+8))
+    if(i <= (nPoints-1)/2):
+        structureTop.write('    %d   %d  %d  %d %d \n' %(8*i+1, topology,  5*i+1, 5*i+6, 5*i+7))
+        structureTop.write('    %d   %d  %d  %d %d \n' %(8*i+2, topology,  5*i+1, 5*i+7, 5*i+2))
+        structureTop.write('    %d   %d  %d  %d %d \n' %(8*i+3, topology,  5*i+2, 5*i+7, 5*i+8))
+        structureTop.write('    %d   %d  %d  %d %d \n' %(8*i+4, topology,  5*i+2, 5*i+8, 5*i+3))
+    #Flip the edge
+        structureTop.write('    %d   %d  %d  %d %d \n' %(8*i+5, topology,  5*i+3, 5*i+8, 5*i+4))
+        structureTop.write('    %d   %d  %d  %d %d \n' %(8*i+6, topology,  5*i+4, 5*i+8, 5*i+9))
+        structureTop.write('    %d   %d  %d  %d %d \n' %(8*i+7, topology,  5*i+4, 5*i+9, 5*i+5))
+        structureTop.write('    %d   %d  %d  %d %d \n' %(8*i+8, topology,  5*i+5, 5*i+9, 5*i+10))
+    else:
+        structureTop.write('%d   %d  %d  %d %d \n' %(8*i+1, topology,  5*i+1, 5*i+6, 5*i+2))
+        structureTop.write('%d   %d  %d  %d %d \n' %(8*i+2, topology,  5*i+2, 5*i+6, 5*i+7))
+        structureTop.write('%d   %d  %d  %d %d \n' %(8*i+3, topology,  5*i+2, 5*i+7, 5*i+3))
+        structureTop.write('%d   %d  %d  %d %d \n' %(8*i+4, topology,  5*i+3, 5*i+7, 5*i+8))
+        structureTop.write('%d   %d  %d  %d %d \n' %(8*i+5, topology,  5*i+4, 5*i+3, 5*i+9))
+        structureTop.write('%d   %d  %d  %d %d \n' %(8*i+6, topology,  5*i+3, 5*i+8, 5*i+9))
+        structureTop.write('%d   %d  %d  %d %d \n' %(8*i+7, topology,  5*i+5, 5*i+4, 5*i+10))
+        structureTop.write('%d   %d  %d  %d %d \n' %(8*i+8, topology,  5*i+4, 5*i+9, 5*i+10))
+structureTop.write('Elements cable using nodeset\n')
+cableTopology = 1
+for i in range(mPoints):
+    if(i == 0):
+        a = [1,5,5*nPoints-4,5*nPoints]
+    else:
+        a = [5*nPoints + 4*i-3,5*nPoints + 4*i-2,5*nPoints + 4*i-1,5*nPoints + 4*i]
+    if(i == mPoints-1):
+        b = [5*nPoints + 4*mPoints-3,5*nPoints+4*mPoints-3,5*nPoints+4*mPoints-3,5*nPoints+4*mPoints-3]
+    else:
+        b = [5*nPoints + 4*i+1,5*nPoints + 4*i+2,5*nPoints + 4*i+3,5*nPoints + 4*i+4]
+    for k in range(4):
+        structureTop.write('%d   %d   %d   %d\n' %(8*nPoints + 4*i - 7 + k, cableTopology,  a[k],b[k]))
+topology = 4;
+structureTop.write('Elements payload using nodeset\n')
+structureTop.write('%d   %d  %d  %d %d \n' %(8*nPoints + 4*mPoints -7, topology,  5*nPoints + 4*mPoints - 2, 5*nPoints + 4*mPoints - 1, 5*nPoints + 4*mPoints - 3))
+structureTop.write('%d   %d  %d  %d %d \n' %(8*nPoints + 4*mPoints -6, topology,  5*nPoints + 4*mPoints - 1, 5*nPoints + 4*mPoints + 1, 5*nPoints + 4*mPoints - 3))
+structureTop.write('%d   %d  %d  %d %d \n' %(8*nPoints + 4*mPoints -5, topology,  5*nPoints + 4*mPoints + 1, 5*nPoints + 4*mPoints    , 5*nPoints + 4*mPoints - 3))
+structureTop.write('%d   %d  %d  %d %d \n' %(8*nPoints + 4*mPoints -4, topology,  5*nPoints + 4*mPoints - 2, 5*nPoints + 4*mPoints    , 5*nPoints + 4*mPoints - 3))
+
 structureTop.close()
 
+##############################################################################################################################################
+embeddedSurface = open('embeddedSurface.top','w')
 
-embeddedSurface = open('embedded.surface','w')
+embeddedSurface.write('Nodes nodeset\n')
+for i in range(nPoints):
+    # i = 0, 1, 2 ..n-1
+    embeddedSurface.write('%d   %f  %f  %f \n' %(5*i+1, xArray[i], yArray[i], 0.0))
+    embeddedSurface.write('%d   %f  %f  %f \n' %(5*i+2, xArray[i], yArray[i], cl))
+    embeddedSurface.write('%d   %f  %f  %f \n' %(5*i+3, xArray[i], yArray[i], 2*cl))
+    embeddedSurface.write('%d   %f  %f  %f \n' %(5*i+4, xArray[i], yArray[i], 3*cl))
+    embeddedSurface.write('%d   %f  %f  %f \n' %(5*i+5, xArray[i], yArray[i], 4*cl))
+# Second part for 4 cables
+for i in range(mPoints-1):
+    # i = 0, 1, 2 ..m-2
+    for j in range(4):
+        c = cStart[j,:] + (cEnd - cStart[j,:])*(i+1.0)/mPoints;
+        embeddedSurface.write('%d   %f  %f  %f \n' %(5*nPoints+4*i+j+1, c[0], c[1], c[2]))
+embeddedSurface.write('%d   %f  %f  %f \n' %(5*nPoints+4*mPoints-3, cEnd[0], cEnd[1], cEnd[2]))
+# Third part for payload
+embeddedSurface.write('%d   %f  %f  %f \n' %(5*nPoints + 4*mPoints - 2, -2*cl, payloadPos, 0.0))
+embeddedSurface.write('%d   %f  %f  %f \n' %(5*nPoints + 4*mPoints - 1, -2*cl, payloadPos, 4*cl))
+embeddedSurface.write('%d   %f  %f  %f \n' %(5*nPoints + 4*mPoints    ,  2*cl, payloadPos, 0.0))
+embeddedSurface.write('%d   %f  %f  %f \n' %(5*nPoints + 4*mPoints + 1,  2*cl, payloadPos, 4*cl))
 
-embeddedSurface.write('SURFACETOPO 1 SURFACE_THICKNESS %f\n' %(thickness))
+topology = 4;
+embeddedSurface.write('Elements StickMovingSurface_8 using nodeset\n')
+for i in range(nPoints-1):
+    embeddedSurface.write('%d   %d  %d  %d %d \n' %(8*i+1, topology,  5*i+1, 5*i+6, 5*i+7))
+    embeddedSurface.write('%d   %d  %d  %d %d \n' %(8*i+2, topology,  5*i+1, 5*i+7, 5*i+2))
+    embeddedSurface.write('%d   %d  %d  %d %d \n' %(8*i+3, topology,  5*i+2, 5*i+7, 5*i+8))
+    embeddedSurface.write('%d   %d  %d  %d %d \n' %(8*i+4, topology,  5*i+2, 5*i+8, 5*i+3))
+    #Flip the edge
+    embeddedSurface.write('%d   %d  %d  %d %d \n' %(8*i+5, topology,  5*i+3, 5*i+8, 5*i+4))
+    embeddedSurface.write('%d   %d  %d  %d %d \n' %(8*i+6, topology,  5*i+4, 5*i+8, 5*i+9))
+    embeddedSurface.write('%d   %d  %d  %d %d \n' %(8*i+7, topology,  5*i+4, 5*i+9, 5*i+5))
+    embeddedSurface.write('%d   %d  %d  %d %d \n' %(8*i+8, topology,  5*i+5, 5*i+9, 5*i+10))
 
+embeddedSurface.write('Elements StickMovingSurface_9 using nodeset\n')
+embeddedSurface.write('%d   %d  %d  %d %d \n' %(8*nPoints + 4*mPoints -7, topology,  5*nPoints + 4*mPoints - 2, 5*nPoints + 4*mPoints - 1, 5*nPoints + 4*mPoints - 3))
+embeddedSurface.write('%d   %d  %d  %d %d \n' %(8*nPoints + 4*mPoints -6, topology,  5*nPoints + 4*mPoints - 1, 5*nPoints + 4*mPoints + 1, 5*nPoints + 4*mPoints - 3))
+embeddedSurface.write('%d   %d  %d  %d %d \n' %(8*nPoints + 4*mPoints -5, topology,  5*nPoints + 4*mPoints + 1, 5*nPoints + 4*mPoints    , 5*nPoints + 4*mPoints - 3))
+embeddedSurface.write('%d   %d  %d  %d %d \n' %(8*nPoints + 4*mPoints -4, topology,  5*nPoints + 4*mPoints - 2, 5*nPoints + 4*mPoints    , 5*nPoints + 4*mPoints - 3))
+
+embeddedSurface.close()
+##############################################################################################################################################
+surfaceTop = open('surface.top','w')
+surfaceTop.write('SURFACETOPO 1 SURFACE_THICKNESS %f\n' %(thickness))
 topology = 3;
 for i in range(nPoints-1):
-    embeddedSurface.write('%d   %d  %d  %d %d \n' %(6*i+1, topology,  4*i+1, 4*i+6, 4*i+2))
-    embeddedSurface.write('%d   %d  %d  %d %d \n' %(6*i+2, topology,  4*i+1, 4*i+5, 4*i+6))
-    embeddedSurface.write('%d   %d  %d  %d %d \n' %(6*i+3, topology,  4*i+2, 4*i+7, 4*i+3))
-    embeddedSurface.write('%d   %d  %d  %d %d \n' %(6*i+4, topology,  4*i+2, 4*i+6, 4*i+7))
-    embeddedSurface.write('%d   %d  %d  %d %d \n' %(6*i+5, topology,  4*i+3, 4*i+8, 4*i+4))
-    embeddedSurface.write('%d   %d  %d  %d %d \n' %(6*i+6, topology,  4*i+3, 4*i+7, 4*i+8))
-embeddedSurface.write('*\n')
-embeddedSurface.close()
+    surfaceTop.write('%d   %d  %d  %d %d \n' %(8*i+1, topology,  5*i+1, 5*i+6, 5*i+7))
+    surfaceTop.write('%d   %d  %d  %d %d \n' %(8*i+2, topology,  5*i+1, 5*i+7, 5*i+2))
+    surfaceTop.write('%d   %d  %d  %d %d \n' %(8*i+3, topology,  5*i+2, 5*i+7, 5*i+8))
+    surfaceTop.write('%d   %d  %d  %d %d \n' %(8*i+4, topology,  5*i+2, 5*i+8, 5*i+3))
+    #Flip the edge
+    surfaceTop.write('%d   %d  %d  %d %d \n' %(8*i+5, topology,  5*i+3, 5*i+8, 5*i+4))
+    surfaceTop.write('%d   %d  %d  %d %d \n' %(8*i+6, topology,  5*i+4, 5*i+8, 5*i+9))
+    surfaceTop.write('%d   %d  %d  %d %d \n' %(8*i+7, topology,  5*i+4, 5*i+9, 5*i+5))
+    surfaceTop.write('%d   %d  %d  %d %d \n' %(8*i+8, topology,  5*i+5, 5*i+9, 5*i+10))
+
+
+surfaceTop.write('*\n')
+surfaceTop.close()
