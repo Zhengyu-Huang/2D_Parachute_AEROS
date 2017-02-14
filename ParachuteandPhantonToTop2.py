@@ -169,10 +169,51 @@ def sFolding(k,scaleX,scaleY):
 
     return num-4*k+2, x*scaleX, y*scaleY
 
-def curveRefine(num, xx, yy,cl, plotOrNot):
-    numArray = np.zeros(num,np.int32)
-    for i in range(num-1):
-        ds = np.sqrt((yy[i+1]-yy[i])**2 + (xx[i+1] - xx[i])**2)
+
+
+
+def AFL(xa, ya, xb, yb,k = 10, plotOrNot=True):
+    x4 = 2.25
+    x3 = x4 - 1.012*np.tan(36.9*np.pi/180)
+    x2 = x3 - 0.506*np.tan(59*np.pi/180)
+    x1 = x2 - 0.5*np.tan(33.95*np.pi/180)
+    y1,y2,y3,y4 = 0, -0.5 , -0.5-0.506, -0.5-0.506-1.012
+
+    o_x,o_y = 0.0, y4 - 2.25*np.tan(20*np.pi/180) + 0.5* 2.25/np.cos(20*np.pi/180)
+
+    nose_x, nose_y = o_x + 1.125*np.cos(np.linspace(-70,-110,k)*np.pi/180), o_y + 1.125*np.sin(np.linspace(-70,-110,k)*np.pi/180)
+
+    x_p = np.append(np.append([-x1,x1,x2,x3,x4,],nose_x),[-x4,-x3,-x2])
+    y_p = np.append(np.append([y1,y1,y2,y3,y4], nose_y), [y4,y3,y2])
+
+    num = k+8
+    scale = (xb-xa)/(2*x1)
+    x,y = x_p*scale, y_p *scale
+    x , y = x + xa - x[0], y + ya - y[0]
+    print('smallest y coord is %f',np.amin(y))
+    if (plotOrNot):
+        plt.fill(x, y,edgecolor='r', fill=False)
+        plt.show()
+
+
+    return num, x, y
+
+
+def squareCurve(xa, ya, xb, yb):
+    h = xb - xa
+
+    x = np.array([xa, xb, xb, xa])
+    y = np.array([ya, ya, ya-h, ya-h])
+    num = 4
+    return num, x, y
+
+def curveRefine(num, xx, yy,cl, closeOrNot, plotOrNot):
+    segNum = num if closeOrNot else num - 1
+
+    numArray = np.zeros(segNum + 1,np.int32)
+
+    for i in range(segNum):
+        ds = np.sqrt((yy[(i+1)%num]-yy[i])**2 + (xx[(i+1)%num] - xx[i])**2)
         n = max(np.ceil(ds/cl), 1) #n small segments on each segment
         numArray[i+1] = numArray[i] + n;
 
@@ -180,9 +221,9 @@ def curveRefine(num, xx, yy,cl, plotOrNot):
     xArray = np.zeros(nPoints)
     yArray = np.zeros(nPoints)
 
-    for i in range(num-1):
-        xArray[numArray[i]:(numArray[i+1]+1)] = np.linspace(xx[i],xx[i+1],num=numArray[i+1] - numArray[i] + 1)
-        yArray[numArray[i]:(numArray[i+1]+1)] = np.linspace(yy[i],yy[i+1],num=numArray[i+1] - numArray[i] + 1)
+    for i in range(segNum):
+        xArray[numArray[i]:(numArray[i+1]+1)] = np.linspace(xx[i],xx[(i+1)%num],num=numArray[i+1] - numArray[i] + 1)
+        yArray[numArray[i]:(numArray[i+1]+1)] = np.linspace(yy[i],yy[(i+1)%num],num=numArray[i+1] - numArray[i] + 1)
 
     if(plotOrNot):
         plt.plot(xArray, yArray,'-*')
@@ -274,7 +315,7 @@ class Parachute:
 
 
 
-    def __init__(self,canopy_n, canopy_x, canopy_y, cable_n, cable_k, cable_r, layer_n,layer_t, capsule_y = -0.5):
+    def __init__(self,canopy_n, canopy_x, canopy_y, cable_n, cable_k, cable_r, layer_n,layer_t, capsule_x, capsule_y = -0.5):
         '''
 
         :param canopy_n: (1D) canopy node number in x direction
@@ -296,6 +337,10 @@ class Parachute:
 
         self.capsule_node: node number of capsule nodes
         '''
+
+
+
+
         self.canopy_n = canopy_n
         self.cable_n = cable_n
         self.cable_k = cable_k
@@ -318,21 +363,41 @@ class Parachute:
         self.cable2_node = np.array(range((layer_n+1)*canopy_n + (cable_k +1)*(cable_n-2) + 1,  (layer_n+1)*canopy_n + 2*(cable_k +1)*(cable_n-2) + 3),dtype=int)
         self.cable2_node[-1]  = (layer_n + 1)*canopy_n - layer_n/2 - 1
 
-        #
-        self.capsule_node = np.array(range((layer_n+1)*canopy_n + 2*(cable_k +1)*(cable_n-2) + 2, (layer_n+1)*canopy_n + 2*(cable_k +1)*(cable_n-2) + 11) ,dtype=int)
-        self.capsule_node[1] = (layer_n+1)*canopy_n
-        self.capsule_node[2:] -= 1
-        self.capsule_node[7] = (layer_n+1)*canopy_n + (cable_k +1)*(cable_n-2) + 1
-        self.capsule_node[8:] -= 1
+        #Capsule nodes
 
-        node_n =  (layer_n+1)*canopy_n + 2*(cable_k +1)*(cable_n-2) + 9
+        capsule_xl, capsule_yl, capsule_xr, capsule_yr = capsule_x, capsule_y, -capsule_x, capsule_y
+        #####We have two kinds of capsules, squeare and AFL
+        capsule_n, capsule_x, capsule_y = AFL(capsule_xl, capsule_yl, capsule_xr, capsule_yr)
+        #capsule_n, capsule_x, capsule_y = squareCurve(capsule_xl, capsule_yl, capsule_xr, capsule_yr)
+
+        self.capsule_n = capsule_n
+        capsule_con_l = self.capsule_con_l = 2 #todo check magic number
+        capsule_con_r = self.capsule_con_r = 7 #todo check magic number
+
+        self.capsule_node = np.array(range((layer_n+1)*canopy_n + 2*(cable_k +1)*(cable_n-2) + 2, (layer_n+1)*canopy_n + 2*(cable_k +1)*(cable_n-2) + 2 + (layer_n+1)*capsule_n) ,dtype=int)
+
+        # node capsule_con_l and capsule_con_r are these connected node
+        self.capsule_node[capsule_con_l] = (layer_n+1)*canopy_n
+        self.capsule_node[capsule_con_l + 1 :] -= 1
+        self.capsule_node[capsule_con_r] = (layer_n+1)*canopy_n + (cable_k +1)*(cable_n-2) + 1
+        self.capsule_node[capsule_con_r + 1 :] -= 1
+
+        node_n =  (layer_n+1)*canopy_n + 2*(cable_k +1)*(cable_n-2) + (layer_n+1)*capsule_n
         self.node_n = node_n
+
+        ##################################################################################
+        # Finish the node number part
+        ##################################################################################
+
+        ##################################################################################
+        # Start the coordinate part
+        ##################################################################################
         self.coord = np.empty(shape=[node_n,3],dtype=float)
         for i in range(canopy_n):
            for j in range(layer_n + 1):
                self.coord[self.canopy_node[i*(layer_n+1) + j],:] = [canopy_x[i],canopy_y[i],layer_t*j]
 
-        self.beam1_start_coord = np.array([-layer_n//2 *layer_t ,capsule_y , layer_n//2*layer_t], dtype=float)
+        self.beam1_start_coord = np.array([capsule_xl, capsule_yl, layer_n//2*layer_t], dtype=float) #This is the capsule_con_l node
         self.beam1_end_coord = self.coord[layer_n//2,:]
         coord = Parachute._compute_phantom_coordinates(self.beam1_start_coord,  self.beam1_end_coord,  cable_n,   cable_k,   cable_r)
         self.coord[self.cable1_node[0],:] = self.beam1_start_coord
@@ -341,7 +406,7 @@ class Parachute:
             for j in range(cable_k):
                 self.coord[self.cable1_node[(i-1)*(cable_k+1)+j + 2],:] = coord[i*(cable_k+1) + j + 1,:]
 
-        self.beam2_start_coord = np.array([layer_n/2 *layer_t ,capsule_y, layer_n/2*layer_t], dtype=float)
+        self.beam2_start_coord = np.array([capsule_xr, capsule_yr, layer_n/2*layer_t], dtype=float)   #This is the capsule_con_r node
         self.beam2_end_coord = self.coord[(layer_n + 1)*canopy_n - layer_n//2 - 1,:]
 
         coord = Parachute._compute_phantom_coordinates(self.beam2_start_coord,self.beam2_end_coord,cable_n,cable_k,cable_r)
@@ -351,9 +416,18 @@ class Parachute:
             for j in range(cable_k):
                 self.coord[self.cable2_node[(i - 1)*(cable_k+1)+j + 2],:] = coord[i*(cable_k+1) + j + 1,:]
 
+        '''
         for i in range(3):
             for j in range(3):
                 self.coord[self.capsule_node[i*3 + j],:] = [(i-1)*layer_n//2 *layer_t ,capsule_y , j* layer_n//2 *layer_t ]
+        '''
+
+
+
+        for i in range(capsule_n):
+           for j in range(layer_n + 1):
+               self.coord[self.capsule_node[i*(layer_n+1) + j],:] = [capsule_x[i],capsule_y[i],layer_t*j]
+
 
         self.thickness = 7.62e-5
 
@@ -572,15 +646,15 @@ class Parachute:
 
         return id
 
-    def _write_capsule_surface(self,file,topo,start_id,mask):
-        #2    5    8
-        #1    4    7
-        #0    3    6
+    def _write_capsule_surface(self,file,topo,id,mask):
+
 
         if mask is None:
             mask = np.arange(self.node_n)
 
         capsule_node =self.capsule_node
+
+        '''
         file.write('%d   %d  %d  %d %d \n' %(start_id,   topo,  mask[capsule_node[0]] + 1, mask[capsule_node[3]] + 1, mask[capsule_node[4]] + 1))
         file.write('%d   %d  %d  %d %d \n' %(start_id+1, topo,  mask[capsule_node[0]] + 1, mask[capsule_node[4]] + 1, mask[capsule_node[1]] + 1))
         file.write('%d   %d  %d  %d %d \n' %(start_id+2, topo,  mask[capsule_node[1]] + 1, mask[capsule_node[4]] + 1, mask[capsule_node[2]] + 1))
@@ -590,6 +664,21 @@ class Parachute:
         file.write('%d   %d  %d  %d %d \n' %(start_id+6, topo,  mask[capsule_node[4]] + 1, mask[capsule_node[7]] + 1, mask[capsule_node[8]] + 1))
         file.write('%d   %d  %d  %d %d \n' %(start_id+7, topo,  mask[capsule_node[4]] + 1, mask[capsule_node[8]] + 1, mask[capsule_node[5]] + 1))
         return start_id + 9
+        '''
+        layer_n = self.layer_n
+        for i in range(self.capsule_n):
+            for j in range(layer_n):
+                # (layer_n+1)*i + j + 1    (layer_n+1)*(i+1) + j + 1
+                # (layer_n+1)*i + j        (layer_n+1)*(i+1) + j
+                file.write('%d   %d  %d  %d %d \n' % (id, topo, mask[capsule_node[(layer_n + 1) * i + j]] + 1, mask[capsule_node[(layer_n + 1) * ((i + 1)%self.capsule_n) + j]] + 1,
+                mask[capsule_node[(layer_n + 1) * ((i + 1)%self.capsule_n) + j + 1]] + 1))
+                id += 1
+                file.write('%d   %d  %d  %d %d \n' % (id, topo, mask[capsule_node[(layer_n + 1) * i + j]] + 1, mask[capsule_node[(layer_n + 1) * ((i + 1)%self.capsule_n) + j + 1]] + 1,
+                mask[capsule_node[(layer_n + 1) * i + j + 1]] + 1))
+                id += 1
+        return id
+
+
 
 
     def _file_write_structure_top(self):
@@ -708,7 +797,7 @@ class Parachute:
 
         capsule_attr = 4;
         start_ele = end_ele + 1
-        end_ele = end_ele + 8
+        end_ele = end_ele + 2*self.capsule_n*self.layer_n
         file.write('%d   %d   %d\n' %(start_ele, end_ele, capsule_attr))
 
         file.write('*\n')
@@ -788,11 +877,11 @@ class Parachute:
         #file.write('1 %d %f\n' %(2*self.layer_n*(self.canopy_n - 1), -4000.0))
         #file.write('*\n')
 
-
+        #Fix the payload
         file.write('DISP\n')
-        for i in range(9):
+        for i in range(self.capsule_n*(self.layer_n+1)):
             node_id = mask[self.capsule_node[i]] + 1
-            if(i != 1 and i != 7):
+            if(i != self.capsule_con_l and i != self.capsule_con_r): #these are the connected nodes
                 for freedom in range(1,7):
                     #Fix payload
                     file.write('%d %d 0.0\n' %(node_id, freedom))
@@ -812,11 +901,12 @@ class Parachute:
 
 
 cl = 0.01
-#num,x,y = candle()
-num,x,y = hilbertCurve(2,1,0.5)
-nPoints, xArray, yArray = curveRefine(num,x,y, cl,True)
+num,x,y = hilbertCurve(2,2,0.5)
+nPoints, xArray, yArray = curveRefine(num,x,y, cl,False, True)
+#AFL(-1, 0, 1, 0)
+
 #nPoints, xArray, yArray = straightLine(5)
-parachute_mesh = Parachute(nPoints, xArray, yArray, cable_n=100, cable_k=6, cable_r=5.0e-3, layer_n=4, layer_t=0.01, capsule_y=-1.5)
+parachute_mesh = Parachute(nPoints, xArray, yArray, cable_n=100, cable_k=4, cable_r=5.0e-3, layer_n=4, layer_t=0.01, capsule_x = -0.05, capsule_y=-2)
 
 parachute_mesh._file_write_structure_top()
 
