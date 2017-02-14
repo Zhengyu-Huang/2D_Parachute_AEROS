@@ -2,7 +2,8 @@ import numpy as np
 import matplotlib.pyplot as plt
 import math
 #This is a mesh generator for quasi-1D parachte
-#there are three simple configurations: sinCurve, straightLine and hatShape
+#for this python file, the cables(suspension lines) are just 1-D elements
+#this is used to test different canopy materials, the suspension lines are not important
 
 #This is a sin curve
 #int  nPoints, number of nodes

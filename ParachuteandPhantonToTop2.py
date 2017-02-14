@@ -2,7 +2,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import math
 #This is a mesh generator for quasi-1D parachte
-#there are three simple configurations: sinCurve, straightLine and hatShape
+#this is the one with matcher dressing techniques for the cables(suspension lines)
 
 #This is a sin curve
 #int  nPoints, number of nodes
@@ -274,7 +274,7 @@ class Parachute:
 
 
 
-    def __init__(self,canopy_n, canopy_x, canopy_y, cable_n, cable_k, cable_r, layer_n, capsule_y = -0.5):
+    def __init__(self,canopy_n, canopy_x, canopy_y, cable_n, cable_k, cable_r, layer_n,layer_t, capsule_y = -0.5):
         '''
 
         :param canopy_n: (1D) canopy node number in x direction
@@ -330,9 +330,9 @@ class Parachute:
         self.coord = np.empty(shape=[node_n,3],dtype=float)
         for i in range(canopy_n):
            for j in range(layer_n + 1):
-               self.coord[self.canopy_node[i*(layer_n+1) + j],:] = [canopy_x[i],canopy_y[i],cl*j]
+               self.coord[self.canopy_node[i*(layer_n+1) + j],:] = [canopy_x[i],canopy_y[i],layer_t*j]
 
-        self.beam1_start_coord = np.array([-layer_n//2 *cl ,capsule_y , layer_n//2*cl], dtype=float)
+        self.beam1_start_coord = np.array([-layer_n//2 *layer_t ,capsule_y , layer_n//2*layer_t], dtype=float)
         self.beam1_end_coord = self.coord[layer_n//2,:]
         coord = Parachute._compute_phantom_coordinates(self.beam1_start_coord,  self.beam1_end_coord,  cable_n,   cable_k,   cable_r)
         self.coord[self.cable1_node[0],:] = self.beam1_start_coord
@@ -341,7 +341,7 @@ class Parachute:
             for j in range(cable_k):
                 self.coord[self.cable1_node[(i-1)*(cable_k+1)+j + 2],:] = coord[i*(cable_k+1) + j + 1,:]
 
-        self.beam2_start_coord = np.array([layer_n/2 *cl ,capsule_y, layer_n/2*cl], dtype=float)
+        self.beam2_start_coord = np.array([layer_n/2 *layer_t ,capsule_y, layer_n/2*layer_t], dtype=float)
         self.beam2_end_coord = self.coord[(layer_n + 1)*canopy_n - layer_n//2 - 1,:]
 
         coord = Parachute._compute_phantom_coordinates(self.beam2_start_coord,self.beam2_end_coord,cable_n,cable_k,cable_r)
@@ -353,7 +353,7 @@ class Parachute:
 
         for i in range(3):
             for j in range(3):
-                self.coord[self.capsule_node[i*3 + j],:] = [(i-1)*layer_n//2 *cl ,capsule_y , j* layer_n//2 *cl ]
+                self.coord[self.capsule_node[i*3 + j],:] = [(i-1)*layer_n//2 *layer_t ,capsule_y , j* layer_n//2 *layer_t ]
 
         self.thickness = 7.62e-5
 
@@ -811,12 +811,12 @@ class Parachute:
 
 
 
-cl = 0.03
+cl = 0.01
 #num,x,y = candle()
-num,x,y = hilbertCurve(3,1,1)
+num,x,y = hilbertCurve(2,1,0.5)
 nPoints, xArray, yArray = curveRefine(num,x,y, cl,True)
 #nPoints, xArray, yArray = straightLine(5)
-parachute_mesh = Parachute(nPoints, xArray, yArray, cable_n=50, cable_k=6, cable_r=5.0e-3, layer_n=4, capsule_y=-3.0)
+parachute_mesh = Parachute(nPoints, xArray, yArray, cable_n=100, cable_k=6, cable_r=5.0e-3, layer_n=4, layer_t=0.01, capsule_y=-1.5)
 
 parachute_mesh._file_write_structure_top()
 
