@@ -600,11 +600,12 @@ class Parachute:
         if(not special):
             for i in range(n - 1):
                 for j in range(layer_n):
-                    # (layer_n+1)*i + j + 1    (layer_n+1)*(i+1) + j + 1
+
                     # (layer_n+1)*i + j        (layer_n+1)*(i+1) + j
-                    file.write('%d   %d  %d  %d %d \n' %(id, topo,  canopy_node[(layer_n+1)*i + j]+1, canopy_node[(layer_n+1)*(i+1) + j]+1, canopy_node[(layer_n+1)*(i+1) + j+1]+1))
+                    # (layer_n+1)*i + j + 1    (layer_n+1)*(i+1) + j + 1
+                    file.write('%d   %d  %d  %d %d \n' %(id, topo,  canopy_node[(layer_n+1)*i + j]+1, canopy_node[(layer_n+1)*(i+1) + j+1]+1, canopy_node[(layer_n+1)*(i+1) + j]+1))
                     id += 1
-                    file.write('%d   %d  %d  %d %d \n' %(id, topo,  canopy_node[(layer_n+1)*i + j]+1, canopy_node[(layer_n+1)*(i+1) + j + 1]+1, canopy_node[(layer_n+1)*i + j + 1]+1))
+                    file.write('%d   %d  %d  %d %d \n' %(id, topo,  canopy_node[(layer_n+1)*i + j]+1, canopy_node[(layer_n+1)*i + j + 1]+1, canopy_node[(layer_n+1)*(i+1) + j + 1]+1))
                     id += 1
         else:
             for i in range(n-1):
@@ -668,13 +669,14 @@ class Parachute:
         layer_n = self.layer_n
         for i in range(self.capsule_n):
             for j in range(layer_n):
-                # (layer_n+1)*i + j + 1    (layer_n+1)*(i+1) + j + 1
+
                 # (layer_n+1)*i + j        (layer_n+1)*(i+1) + j
-                file.write('%d   %d  %d  %d %d \n' % (id, topo, mask[capsule_node[(layer_n + 1) * i + j]] + 1, mask[capsule_node[(layer_n + 1) * ((i + 1)%self.capsule_n) + j]] + 1,
-                mask[capsule_node[(layer_n + 1) * ((i + 1)%self.capsule_n) + j + 1]] + 1))
-                id += 1
+                # (layer_n+1)*i + j + 1    (layer_n+1)*(i+1) + j + 1
                 file.write('%d   %d  %d  %d %d \n' % (id, topo, mask[capsule_node[(layer_n + 1) * i + j]] + 1, mask[capsule_node[(layer_n + 1) * ((i + 1)%self.capsule_n) + j + 1]] + 1,
-                mask[capsule_node[(layer_n + 1) * i + j + 1]] + 1))
+                mask[capsule_node[(layer_n + 1) * ((i + 1)%self.capsule_n) + j]] + 1))
+                id += 1
+                file.write('%d   %d  %d  %d %d \n' % (id, topo, mask[capsule_node[(layer_n + 1) * i + j]] + 1, mask[capsule_node[(layer_n + 1) * i + j + 1]] + 1,
+                mask[capsule_node[(layer_n + 1) * ((i + 1)%self.capsule_n) + j + 1]] + 1))
                 id += 1
         return id
 
@@ -712,6 +714,11 @@ class Parachute:
         file.write('SURFACETOPO 1 SURFACE_THICKNESS %f\n' %(self.thickness))
         topo = 3;
         id = self._write_canopy_surface(file,topo,id)
+        file.write('*\n')
+
+        file.write('SURFACETOPO 2 \n')
+        topo = 2;
+        id = self._write_cable_beam(file, topo, id, mask)
         file.write('*\n')
 
 
@@ -777,7 +784,7 @@ class Parachute:
         id = self._write_capsule_surface(file,topo,id,self.structure_mask)
         file.close()
 
-    def _file_write_aeros_mesh_include(self):
+    def _file_write_aeros_mesh_include(self, Canopy_Matlaw = 'HyperElasticPlaneStress'):
 
         mask = self.structure_mask
 
@@ -821,7 +828,7 @@ class Parachute:
 
 
         cable_beam_attr = 2;
-        E = 7.9e8
+        E = 3.0e8
         poissonRatio = 0.4
         rho = 1000
         cable_r = self.cable_r
@@ -868,13 +875,22 @@ class Parachute:
         # MATLAW can specify nonlinear property of the material
         # material id, material name, ...
         file.write('MATLAW\n')
-        file.write('1 HyperElasticPlaneStress %f %f %f %f\n' %(density, youngsModulus, poissonRatio, thickness))
+        if(Canopy_Matlaw == 'HyperElasticPlaneStress'):
+            file.write('1 HyperElasticPlaneStress %f %f %f %f\n' %(density, youngsModulus, poissonRatio, thickness))
+        elif(Canopy_Matlaw == 'PlaneStressViscoNeoHookean'):
+            file.write('1 PlaneStressViscoNeoHookean %f %f %f 0.4 10 0.3 50 0.2 100 %f\n' % (density, youngsModulus, poissonRatio, thickness))
+
         file.write('*\n')
 
 
         # Pressure
-        #file.write('PRESSURE\n')
-        #file.write('1 %d %f\n' %(2*self.layer_n*(self.canopy_n - 1), -4000.0))
+        file.write('PRESSURE\n')
+        file.write('1 %d %f\n' %(2*self.layer_n*(self.canopy_n - 1), -4000.0))
+        file.write('*\n')
+
+        # Gravity
+        #file.write('GRAVITY\n')
+        #file.write('%f %f %f\n' %(0.0, -10000, 0.0))
         #file.write('*\n')
 
         #Fix the payload
@@ -901,16 +917,19 @@ class Parachute:
 
 
 cl = 0.01
-num,x,y = hilbertCurve(2,2,0.5)
+num,x,y = hilbertCurve(2,1.0,0.25)
+#num,x,y = sFolding(3,0.25,0.25)
 nPoints, xArray, yArray = curveRefine(num,x,y, cl,False, True)
-#AFL(-1, 0, 1, 0)
+
 
 #nPoints, xArray, yArray = straightLine(5)
-parachute_mesh = Parachute(nPoints, xArray, yArray, cable_n=100, cable_k=4, cable_r=5.0e-3, layer_n=4, layer_t=0.01, capsule_x = -0.05, capsule_y=-2)
+parachute_mesh = Parachute(nPoints, xArray, yArray, cable_n=100, cable_k=4, cable_r=5.0e-3, layer_n=4, layer_t=0.01, capsule_x = -0.05, capsule_y=-2.0)
 
 parachute_mesh._file_write_structure_top()
 
-parachute_mesh._file_write_aeros_mesh_include()
+#Canopy_Matlaw = 'HyperElasticPlaneStress'
+Canopy_Matlaw = 'PlaneStressViscoNeoHookean'
+parachute_mesh._file_write_aeros_mesh_include(Canopy_Matlaw)
 
 parachute_mesh._file_write_common_data_include()
 
