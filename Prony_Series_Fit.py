@@ -92,13 +92,13 @@ if __name__ =="__main__":
         #   0.0       0.0
         #   0.143   37lbf/in = 12333.333333333334lbf/in^2 = 85035339.91Pa
         ep1, ep2 = 0.143, 0.0
-        stress = np.array([[0, 10,   100, 110],
-                           [0, ep1, ep2,ep2]])
-        #E0, para = 6.8e+8, np.array([[10, 50, 100], [0.4, 0.3, 0.2]])
-        E0, para = 6.8e+8, np.array([[10, 50, 100], [0.2, 0.1, 0.04]])
+        stress = np.array([[0, 10,  100,     110, 200, 210,    300, 310, 400,    410, 500, 510,   600, 610, 700,   710, 800, 810,  900, 910, 1000 ] ,
+                           [0, ep1, ep2,     ep1, ep2, ep1,    ep2, ep1, ep2,    ep1, ep2,ep1,    ep2, ep1,ep2,    ep1, ep2,ep1,   ep2, ep1,ep2]])
+        E0, para = 6.8e+8, np.array([[10, 50, 100], [0.4, 0.3, 0.2]])
+        #E0, para = 6.8e+8, np.array([[10, 50, 100], [0.2, 0.1, 0.04]])
 
 
-    strain = Strain_Result(stress,para,E0, k = 100)
+    strain = Strain_Result(stress,para,E0, k = 1000)
     lbf_in_to_pa = 6894.75729/0.003
     plt.figure(1)
     plt.plot(strain[0,:], strain[2,:])
