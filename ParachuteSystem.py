@@ -152,16 +152,16 @@ class Parachute:
         for i in range(2):
             self.structure_coord[cable_joint_node[i],0:2],self.structure_coord[cable_joint_node[i],2] = cable_joint[i,:], layer_n//2*layer_t
 
-        for i in range(6):
-            for j in range(phantom_offset, cables_n[i] - phantom_offset):
-                self.structure_coord[self.cables_node[i][j], :] = cables_coord[i][j,:]
+        for cable_i in range(6):
+            for j in range(phantom_offset, cables_n[cable_i] - phantom_offset):
+                self.structure_coord[self.cables_node[cable_i][j], :] = cables_coord[cable_i][j,:]
                 #first node for the beam surface
-                self.embedded_coord[self.phantoms_node[i][0], :] = cables_coord[i][phantom_offset, :]
+                self.embedded_coord[self.phantoms_node[cable_i][0], :] = cables_coord[cable_i][phantom_offset, :]
                 for k in range(cable_k):
 
-                    self.embedded_coord[self.phantoms_node[i][(j-phantom_offset)*cable_k + k], :] = phantoms_coord[i][j*cable_k +k,:]
+                    self.embedded_coord[self.phantoms_node[cable_i][(j-phantom_offset)*cable_k + k+1], :] = phantoms_coord[cable_i][j*cable_k +k,:]
                 #last node for the beam surface
-                self.embedded_coord[self.phantoms_node[i][-1], :] = cables_coord[i][-1-phantom_offset, :]
+                self.embedded_coord[self.phantoms_node[cable_i][-1], :] = cables_coord[cable_i][-1-phantom_offset, :]
 
         self.thickness = 7.62e-5
 
@@ -361,7 +361,7 @@ class Parachute:
         file.close()
 
     def _file_write_surface_top(self):
-        
+
         file = open('surface.top','w')
         id = 1
         file.write('SURFACETOPO 1 SURFACE_THICKNESS %f\n' %(self.thickness))
@@ -418,16 +418,19 @@ class Parachute:
         id = self._write_canopy_surface(file,topo,id)
 
 
-        #beam element 6
-        topo = 6;
-        id = self._write_cable_beam(file,topo,id)
+
 
         #capsule triangle around
         topo = 129
         id = self._write_capsule_surface(file,topo,id)
+
+
+        # beam element 6
+        topo = 6;
+        id = self._write_cable_beam(file, topo, id)
         file.close()
 
-    def _file_write_aeros_mesh_include(self, Canopy_Matlaw = 'HyperElasticPlaneStress', pressure = -1, gravity = -1):
+    def _file_write_aeros_mesh_include(self, Canopy_Matlaw = 'HyperElasticPlaneStress', pressure = None, gravity = None):
 
 
         file = open('aeros.mesh.include','w')
@@ -508,12 +511,12 @@ class Parachute:
         file.write('*\n')
 
 
-        if(pressure):
+        if pressure is not None:
             file.write('PRESSURE\n')
             file.write('1 %d %f\n' %(2*self.layer_n*(self.canopy_n - 1), pressure))
             file.write('*\n')
 
-        if(gravity):
+        if gravity is not None:
             file.write('GRAVITY\n')
             file.write('%f %f %f\n' %(0.0, gravity, 0.0))
             file.write('*\n')
@@ -554,19 +557,20 @@ canopy_xScale, canopy_yScale = 1.,1.
 layer_n = 4
 layer_t = 1
 k = 1
+canopy = [canopy_type, canopy_cl, canopy_xScale, canopy_yScale, layer_n, layer_t, k]
+
+capsule_type = 'square'
+capsule_xScale, capsule_yScale = 0.3115, -44.721
+capsule =  [capsule_type, capsule_xScale, capsule_yScale]
+
 
 cable = ['straight','straight','straight','straight','straight','straight']
 cable_cl = 100;
 cable_k = 4
 cable_r = 0.1
 cable_joint = np.array([[0.,-35.826 ],[0., -43.372]])
-phantom_offset = 0
-
-capsule_type = 'square'
-capsule_xScale, capsule_yScale = 0.3115, -44.721
-canopy = [canopy_type, canopy_cl, canopy_xScale, canopy_yScale, layer_n, layer_t, k]
+phantom_offset = 1
 cable.extend([cable_cl, cable_k,cable_r, cable_joint, phantom_offset])
-capsule =  [capsule_type, capsule_xScale, capsule_yScale]
 
 
 parachute_mesh = Parachute(canopy, cable, capsule)

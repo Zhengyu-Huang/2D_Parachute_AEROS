@@ -81,6 +81,13 @@ def candle():
     return num, xx, yy
 
 
+def zCurve(scaleX,scaleY):
+    x = np.array([-0.5, -0.1, -0.5, 0.5, 0.1,  0.5])
+    y = np.array([0.0,  0,   1,    1,   0.0 ,  0.0])
+
+    return 6, x*scaleX, y*scaleY
+
+
 
 def hilbertCurveRecursive(n):
     ''' Generate Hilbert curve . 'n' must be a power of two. '''
@@ -609,7 +616,7 @@ class Parachute:
                     id += 1
         else:
             for i in range(n-1):
-                if(i <= (n-1)/2):
+                if(i <= (n-2)/2):
                     file.write('%d   %d  %d  %d %d \n' %(id, topo, (layer_n+1)*i +1, (layer_n+1)*i + 6, (layer_n+1)*i +7))
                     id +=1
                     file.write('%d   %d  %d  %d %d \n' %(id, topo, (layer_n+1)*i +1, (layer_n+1)*i + 7, (layer_n+1)*i +2))
@@ -917,13 +924,17 @@ class Parachute:
 
 
 cl = 0.01
-num,x,y = hilbertCurve(2,1.0,0.25)
-#num,x,y = sFolding(3,0.25,0.25)
+num,x,y = hilbertCurve(2,1,1)
+#num,x,y = sFolding(2,0.5,0.01)
+
+#num,x,y = zCurve(0.5,1e-3)
+
 nPoints, xArray, yArray = curveRefine(num,x,y, cl,False, True)
 
+#nPoints, xArray, yArray = curveRefine(num,x,y, cl,False, True)
 
-#nPoints, xArray, yArray = straightLine(5)
-parachute_mesh = Parachute(nPoints, xArray, yArray, cable_n=100, cable_k=4, cable_r=5.0e-3, layer_n=4, layer_t=0.01, capsule_x = -0.05, capsule_y=-2.0)
+#nPoints, xArray, yArray = straightLine(100)
+parachute_mesh = Parachute(nPoints, xArray, yArray, cable_n=100, cable_k=4, cable_r=5.0e-3, layer_n=4, layer_t=0.01, capsule_x = -0.05, capsule_y=-36.578)
 
 parachute_mesh._file_write_structure_top()
 
