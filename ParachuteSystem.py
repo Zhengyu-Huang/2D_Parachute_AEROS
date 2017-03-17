@@ -248,58 +248,51 @@ class Parachute:
 
         return id
 
-    def _write_canopy_surface(self,file,topo,start_id, special = True):
+    def _write_canopy_surface(self,file,topo,start_id, list = None):
         n = self.canopy_n
         layer_n = self.layer_n
-        canopy_node = self.canopy_node
         id = start_id;
-        if(not special):
-            for i in range(n - 1):
-                for j in range(layer_n):
 
-                    # (layer_n+1)*i + j        (layer_n+1)*(i+1) + j
-                    # (layer_n+1)*i + j + 1    (layer_n+1)*(i+1) + j + 1
-                    file.write('%d   %d  %d  %d %d \n' %(id, topo,  canopy_node[(layer_n+1)*i + j]+1, canopy_node[(layer_n+1)*(i+1) + j+1]+1, canopy_node[(layer_n+1)*(i+1) + j]+1))
-                    id += 1
-                    file.write('%d   %d  %d  %d %d \n' %(id, topo,  canopy_node[(layer_n+1)*i + j]+1, canopy_node[(layer_n+1)*i + j + 1]+1, canopy_node[(layer_n+1)*(i+1) + j + 1]+1))
-                    id += 1
-        else:
-            for i in range(n-1):
-                if(i <= (n-2)/2):
-                    file.write('%d   %d  %d  %d %d \n' %(id, topo, (layer_n+1)*i +1, (layer_n+1)*i + 6, (layer_n+1)*i +7))
-                    id +=1
-                    file.write('%d   %d  %d  %d %d \n' %(id, topo, (layer_n+1)*i +1, (layer_n+1)*i + 7, (layer_n+1)*i +2))
-                    id +=1
-                    file.write('%d   %d  %d  %d %d \n' %(id, topo, (layer_n+1)*i +2, (layer_n+1)*i + 7, (layer_n+1)*i +3))
-                    id +=1
-                    file.write('%d   %d  %d  %d %d \n' %(id, topo, (layer_n+1)*i +3, (layer_n+1)*i + 7, (layer_n+1)*i +8))
-                    id +=1
-                    file.write('%d   %d  %d  %d %d \n' %(id, topo, (layer_n+1)*i +3, (layer_n+1)*i + 8, (layer_n+1)*i +9))
-                    id +=1
-                    file.write('%d   %d  %d  %d %d \n' %(id, topo, (layer_n+1)*i +3, (layer_n+1)*i + 9, (layer_n+1)*i +4))
-                    id +=1
-                    file.write('%d   %d  %d  %d %d \n' %(id, topo, (layer_n+1)*i +4, (layer_n+1)*i + 9, (layer_n+1)*i +5))
-                    id +=1
-                    file.write('%d   %d  %d  %d %d \n' %(id, topo, (layer_n+1)*i +5, (layer_n+1)*i + 9, (layer_n+1)*i +10))
-                    id +=1
+        if list is None:
+            list = range(n-1)
 
-                else:
-                    file.write('%d   %d  %d  %d %d \n' %(id, topo, (layer_n+1)*i +1, (layer_n+1)*i + 6, (layer_n+1)*i +2))
-                    id +=1
-                    file.write('%d   %d  %d  %d %d \n' %(id, topo, (layer_n+1)*i +2, (layer_n+1)*i + 6, (layer_n+1)*i +7))
-                    id +=1
-                    file.write('%d   %d  %d  %d %d \n' %(id, topo, (layer_n+1)*i +2, (layer_n+1)*i + 7, (layer_n+1)*i +8))
-                    id +=1
-                    file.write('%d   %d  %d  %d %d \n' %(id, topo, (layer_n+1)*i +2, (layer_n+1)*i + 8, (layer_n+1)*i +3))
-                    id +=1
-                    file.write('%d   %d  %d  %d %d \n' %(id, topo, (layer_n+1)*i +3, (layer_n+1)*i + 8, (layer_n+1)*i +4))
-                    id +=1
-                    file.write('%d   %d  %d  %d %d \n' %(id, topo, (layer_n+1)*i +4, (layer_n+1)*i + 8, (layer_n+1)*i +9))
-                    id +=1
-                    file.write('%d   %d  %d  %d %d \n' %(id, topo, (layer_n+1)*i +4, (layer_n+1)*i + 9, (layer_n+1)*i +10))
-                    id +=1
-                    file.write('%d   %d  %d  %d %d \n' %(id, topo, (layer_n+1)*i +4, (layer_n+1)*i + 10, (layer_n+1)*i +5))
-                    id +=1
+
+        for i in list:
+            if(i <= (n-2)/2):
+                file.write('%d   %d  %d  %d %d \n' %(id, topo, (layer_n+1)*i +1, (layer_n+1)*i + 6, (layer_n+1)*i +7))
+                id +=1
+                file.write('%d   %d  %d  %d %d \n' %(id, topo, (layer_n+1)*i +1, (layer_n+1)*i + 7, (layer_n+1)*i +2))
+                id +=1
+                file.write('%d   %d  %d  %d %d \n' %(id, topo, (layer_n+1)*i +2, (layer_n+1)*i + 7, (layer_n+1)*i +3))
+                id +=1
+                file.write('%d   %d  %d  %d %d \n' %(id, topo, (layer_n+1)*i +3, (layer_n+1)*i + 7, (layer_n+1)*i +8))
+                id +=1
+                file.write('%d   %d  %d  %d %d \n' %(id, topo, (layer_n+1)*i +3, (layer_n+1)*i + 8, (layer_n+1)*i +9))
+                id +=1
+                file.write('%d   %d  %d  %d %d \n' %(id, topo, (layer_n+1)*i +3, (layer_n+1)*i + 9, (layer_n+1)*i +4))
+                id +=1
+                file.write('%d   %d  %d  %d %d \n' %(id, topo, (layer_n+1)*i +4, (layer_n+1)*i + 9, (layer_n+1)*i +5))
+                id +=1
+                file.write('%d   %d  %d  %d %d \n' %(id, topo, (layer_n+1)*i +5, (layer_n+1)*i + 9, (layer_n+1)*i +10))
+                id +=1
+
+            else:
+                file.write('%d   %d  %d  %d %d \n' %(id, topo, (layer_n+1)*i +1, (layer_n+1)*i + 6, (layer_n+1)*i +2))
+                id +=1
+                file.write('%d   %d  %d  %d %d \n' %(id, topo, (layer_n+1)*i +2, (layer_n+1)*i + 6, (layer_n+1)*i +7))
+                id +=1
+                file.write('%d   %d  %d  %d %d \n' %(id, topo, (layer_n+1)*i +2, (layer_n+1)*i + 7, (layer_n+1)*i +8))
+                id +=1
+                file.write('%d   %d  %d  %d %d \n' %(id, topo, (layer_n+1)*i +2, (layer_n+1)*i + 8, (layer_n+1)*i +3))
+                id +=1
+                file.write('%d   %d  %d  %d %d \n' %(id, topo, (layer_n+1)*i +3, (layer_n+1)*i + 8, (layer_n+1)*i +4))
+                id +=1
+                file.write('%d   %d  %d  %d %d \n' %(id, topo, (layer_n+1)*i +4, (layer_n+1)*i + 8, (layer_n+1)*i +9))
+                id +=1
+                file.write('%d   %d  %d  %d %d \n' %(id, topo, (layer_n+1)*i +4, (layer_n+1)*i + 9, (layer_n+1)*i +10))
+                id +=1
+                file.write('%d   %d  %d  %d %d \n' %(id, topo, (layer_n+1)*i +4, (layer_n+1)*i + 10, (layer_n+1)*i +5))
+                id +=1
 
         return id
 
@@ -368,15 +361,42 @@ class Parachute:
 
         file.close()
 
-    def _file_write_embedded_surface_top(self):
+    def _file_write_embedded_surface_top(self, diffPorosity = False):
         file = open('embeddedSurface.top','w')
 
         file.write('Nodes nodeset\n')
         self._write_coord(file,'embedded')
+
+        n = self.canopy_n
         id = 1
+        if(diffPorosity):
+            '''
+            assume the parauchte canopy has 7 parts, fabric       gap         fabric       vent          fabric               gap                fabric
+                                                           beta1*L     beta2*L       beta3*L    (1-beta3)*L      (1-beta2)*L        (1-beta1)*L
+            '''
+
+            beta1, beta2, beta3 = 0.2, 0.25,0.45
+            # porous = 0.02
+            set_2 = set()
+            for i in range(n-1):
+                if (i+ 1)/float(n-1)  <= beta1 or (beta2 <= i/float(n-1) and (i+1)/float(n-1) <= beta3):
+                    set_2.update([i,n-2-i])
+            # porous = 1.0
+            set_1 = set(range(n-1)).difference(set_2)
+
+            # porous = 1.0
+
+            file.write('Elements StickMovingSurface_7 using nodeset\n')
+            topo = 4;
+            id = self._write_canopy_surface(file,topo,id, set_1)
+        else:
+            set_2 = None
+
+        # porous = 0.02
+
         file.write('Elements StickMovingSurface_8 using nodeset\n')
         topo = 4;
-        id = self._write_canopy_surface(file,topo,id)
+        id = self._write_canopy_surface(file, topo, id, set_2)
 
         file.write('Elements StickMovingSurface_9 using nodeset\n')
         topo = 4
@@ -628,11 +648,11 @@ if __name__ == "__main__":
 
         parachute_mesh._file_write_common_data_include()
 
-        parachute_mesh._file_write_embedded_surface_top()
+        parachute_mesh._file_write_embedded_surface_top(True)
 
         parachute_mesh._file_write_surface_top()
 
-        parachute_mesh._write_domain_geo('domain.geo', True, cl_cable = 0.05, cl = 0.05, cl_bg = 1)
+        parachute_mesh._write_domain_geo('domain.geo', True, cl_cable = 0.05, cl = 0.05, cl_bg = 2)
 
     else:
         canopy_type = 'line'
@@ -665,7 +685,7 @@ if __name__ == "__main__":
 
         parachute_mesh._file_write_common_data_include()
 
-        parachute_mesh._file_write_embedded_surface_top()
+        parachute_mesh._file_write_embedded_surface_top(True)
 
         parachute_mesh._file_write_surface_top()
 
