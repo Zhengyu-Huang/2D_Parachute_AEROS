@@ -127,15 +127,17 @@ class Parachute:
         self.embedded_coord = np.empty(shape=[self.embedded_node_n, 3], dtype=float)
         for i in range(canopy_n):
            for j in range(layer_n + 1):
-               self.structure_coord[self.canopy_node[i*(layer_n+1) + j],:] = [canopy_x[i],canopy_y[i],layer_t*j]
-               self.embedded_coord[self.canopy_node[i * (layer_n + 1) + j], :] = [canopy_x[i], canopy_y[i], layer_t * j]
+               z = self._layer_node_z(j)
+               self.structure_coord[self.canopy_node[i*(layer_n+1) + j],:] = [canopy_x[i],canopy_y[i],z]
+               self.embedded_coord[self.canopy_node[i * (layer_n + 1) + j], :] = [canopy_x[i], canopy_y[i], z]
 
 
 
         for i in range(capsule_n):
            for j in range(layer_n + 1):
-               self.structure_coord[self.capsule_node[i*(layer_n+1) + j],:] = [capsule_x[i],capsule_y[i],layer_t*j]
-               self.embedded_coord[self.capsule_node[i * (layer_n + 1) + j], :] = [capsule_x[i], capsule_y[i], layer_t * j]
+               z = self._layer_node_z(j)
+               self.structure_coord[self.capsule_node[i*(layer_n+1) + j],:] = [capsule_x[i],capsule_y[i],z]
+               self.embedded_coord[self.capsule_node[i * (layer_n + 1) + j], :] = [capsule_x[i], capsule_y[i], z]
 
         for i in range(2):
             self.structure_coord[cable_joint_node[i],0:2],self.structure_coord[cable_joint_node[i],2] = cable_joint[i,:], layer_n//2*layer_t
@@ -155,7 +157,22 @@ class Parachute:
 
 
 
+    def _layer_node_z(self,j, eps = 1e-12):
+        '''
+        special issue about emebedded simulation for 2d, extrude structure a little
+        :param j:
+        :param eps:
+        :return:
+        '''
+        layer_n, layer_t = self.layer_n, self.layer_t
 
+        if j == 0:
+            z = layer_t * j - eps
+        elif j == layer_n:
+            z = layer_t * j + eps
+        else:
+            z = layer_t * j
+        return z
 
 
     def _write_coord(self,file,which):
@@ -531,7 +548,7 @@ class Parachute:
 
         #Fix the payload
         file.write('DISP\n')
-        for i in range(self.capsule_n*self.layer_n):
+        for i in range(self.capsule_n*(self.layer_n+1)):
             node_id = self.capsule_node[i] + 1
             if(i != layer_n//2 and i != layer_n//2 + (layer_n+1) and i != layer_n//2 + 2*(layer_n+1)): #these are the connected nodes
                 for freedom in range(1,7):
@@ -642,9 +659,9 @@ if __name__ == "__main__":
 
         parachute_mesh._file_write_structure_top()
 
-        #Canopy_Matlaw = 'HyperElasticPlaneStress'
-        Canopy_Matlaw = 'PlaneStressViscoNeoHookean'
-        parachute_mesh._file_write_aeros_mesh_include(Canopy_Matlaw, -4000.0)
+        Canopy_Matlaw = 'HyperElasticPlaneStress'
+        #Canopy_Matlaw = 'PlaneStressViscoNeoHookean'
+        parachute_mesh._file_write_aeros_mesh_include(Canopy_Matlaw)
 
         parachute_mesh._file_write_common_data_include()
 
@@ -679,9 +696,9 @@ if __name__ == "__main__":
 
         parachute_mesh._file_write_structure_top()
 
-        # Canopy_Matlaw = 'HyperElasticPlaneStress'
-        Canopy_Matlaw = 'PlaneStressViscoNeoHookean'
-        parachute_mesh._file_write_aeros_mesh_include(Canopy_Matlaw, -4000.0)
+        Canopy_Matlaw = 'HyperElasticPlaneStress'
+        # Canopy_Matlaw = 'PlaneStressViscoNeoHookean'
+        parachute_mesh._file_write_aeros_mesh_include(Canopy_Matlaw)
 
         parachute_mesh._file_write_common_data_include()
 
