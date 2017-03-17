@@ -1,7 +1,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 import math
-import Folding ,Cable ,AeroShell
+import Folding ,Cable ,AeroShell, FluidGeo
 #This is a mesh generator for quasi-1D parachte
 #this is the one with matcher dressing techniques for the cables(suspension lines)
 
@@ -21,57 +21,45 @@ class Parachute:
 #                                            \             /
 #                                             \          /
 #                                              \       /
+#                                               \     /
+#                                                \ A /
+#                                                  |
+#                                                  |
+#                                                  |B
+#                                                 /|\
+#                                                / | \
 #                                               *******
-#                            layer_n*canopy_n+1        layer_n*canopy_n+1
-#
-#
-#For the canopy, it has nPoints-1 segments and is extruded 4 layers in the z direction,  the points are labeled as
-#5 10 15 ... 5*nPoints
-#4 9  14 ... 5*nPoints-1
-#3 8  13 ... 5*nPoints-2
-#2 7  12 ... 5*nPoints-3
-#1 6  11 ... 5*nPoints-4
-#For the cables, it has mPoints segments, 4 nodes connecting these cables are 1 , 4 , 4*nPoins - 3 , 4*nPoints, on the cables these nodes are
-# 1 ,            5 ,            5*nPoins - 4 ,   5*nPoints,
-# 5*nPoints + 1, 5*nPoints + 2, 5*nPoints + 3,   5*nPoints + 4,
-# 5*nPoints + 5, 5*nPoints + 6, 5*nPoints + 7,   5*nPoints + 8,
-# ......
-# 5*nPoints + 4*mPoints - 7, 5*nPoints + 4*mPoints - 6, 5*nPoints + 4*mPoints - 5,   5*nPoints + 4*mPoints - 4,
-# 5*nPoints + 4*mPoints - 3, 5*nPoints + 4*mPoints - 3, 5*nPoints + 4*mPoints - 3,   5*nPoints + 4*mPoints - 3,
-# For the payload, it is a square panel
-# 5*nPoints + 4*mPoints - 2, 5*nPoints + 4*mPoints - 1, 5*nPoints + 4*mPoints,   5*nPoints + 4*mPoints + 1
-
-
-
-
-    def __init__(self, canopy, cable, capsule):
+# The parachute has canopy part, capsult part and 6 cables
+##################################################################################################################
+    def __init__(self, canopy, capsule, cable):
         '''
 
-        :param canopy_n: (1D) canopy node number in x direction
-        :param canopy_x: x coordinate of canopy nodes
-        :param canopy_y: y coordinate of canopy nodes
-        :param cable_n: node number on suspension line
-        :param cable_k: node number on a cross-section of dressing surface, node number on dressing surface is cable_n*cable_k + 2(bottom and top)
-        :param cable_r: cable radius
-        :param layer_n: number of layers extruded in z direction, node number in z direction is layer_n+1
-        :param capsule_y: capsule is at (x = 0, y = capsule_y, z = layer_n /2 * d)
+        :param canopy: canopy type, canopy mesh size, canopy position (-xScale, xScale)*(0, yScale), layers=4, layer_t layer thickness
+        :param capsule: capsule type capsule top at (-xScale, yScale)*(xScale, yScale)
+        :param cable, cable type a list of 6 strings, cable mesh size,
+        cable_k: node number on a cross-section of dressing surface
+        cable_r: cable radius
+        cable_joint: array([[Ax,Ay][Bx, By]])
+        self.phantom_offset: 0 means the phantom surface is as long as the cable, 1 phantom surface has one offset on both side
 
         Attributes:
-        self.canopy_node: an array of node number id in self.coord
+        self.canopy_node: an array of canopy node in self.coord
+        self.canopy_n :  canopy node number
+        self.capsule_node: an array of capsule node in self.coord
+        self.capsule_n: capsule node number
+        self.cables_node: an list of 6 list each contains cable node in self.structure.coord (cable order: from top to down from left to right)
+        self.cables_n: cable node number list
+        self.phantoms_node: an list of 6 list each contains phantom node in self.embedded.coord, phantom surface is a closed surface, which
+        including a node at top and a node at the bottom.
 
-        self.cable1_node: node number id in self.coord of left suspension line, its dressing is around node 1 to node cable_n-2,  from bottom to top,
-        layer by layer, for those layer with dressing, it is labeled from center to dressing surface
+        self.structure_coord: coordinates of structure nodes
+        self.emebedded_coord: coordinates of embedded surface nodes
 
-        self.cable2_node: node number id in self.coord of right suspension line, from bottom to top
-
-        self.capsule_node: node number of capsule nodes
-
-        self.structure_coord
-        self.emebedded_coord
+        self.As, self.Bs: cable i start point As[i], end point Bs[i]
         '''
-        canopy_type, canopy_cl, canopy_xScale, canopy_yScale, self.layer_n, layer_t, *canopy_args = canopy
-        *cable_type, cable_cl, self.cable_k,self.cable_r, self.cable_joint, self.phantom_offset = cable
-        capsule_type, capsule_xScale, capsule_yScale = capsule
+        canopy_type, canopy_cl, canopy_xScale, canopy_yScale, self.layer_n, self.layer_t, *canopy_args = canopy
+        *cable_type, self.cable_cl, self.cable_k,self.cable_r, self.cable_joint, self.phantom_offset = cable
+        self.capsule_type, self.capsule_xScale, self.capsule_yScale = capsule
 
 
         self.layer_n = layer_n
@@ -338,6 +326,7 @@ class Parachute:
         return id
 
     def _file_write_structure_top(self):
+
         file = open('structure.top','w')
         id = 1
         file.write('Nodes nodeset\n')
@@ -369,14 +358,11 @@ class Parachute:
         id = self._write_canopy_surface(file,topo,id)
         file.write('*\n')
 
+
+
+
         file.write('SURFACETOPO 2 \n')
         topo = 2;
-        id = self._write_cable_surface(file, topo, id)
-        file.write('*\n')
-
-
-        file.write('SURFACETOPO 3 \n')
-        topo = 3;
         id = self._write_capsule_surface(file,topo,id)
         file.write('*\n')
 
@@ -394,12 +380,14 @@ class Parachute:
 
         file.write('Elements StickMovingSurface_9 using nodeset\n')
         topo = 4
-        id = self._write_cable_surface(file,topo,id)
-
+        id = self._write_capsule_surface(file, topo, id)
 
         file.write('Elements StickMovingSurface_10 using nodeset\n')
         topo = 4
-        id = self._write_capsule_surface(file,topo,id)
+        id = self._write_cable_surface(file,topo,id)
+
+
+
 
         file.close()
 
@@ -463,7 +451,7 @@ class Parachute:
 
         # Material specifies material
         # material id, ....
-        youngsModulus = 6.08e8
+        youngsModulus = 6.9e8
         poissonRatio = 0.4
         density = 1153.4
         thickness = self.thickness
@@ -475,7 +463,7 @@ class Parachute:
         file.write('%d 0 %f %f %f 0 0 %f 0 0 0 0 0 0 0\n' %(capsule_attr, youngsModulus, poissonRatio, density, thickness))
 
 
-        E = 3.0e8
+        E = 12.9e9
         poissonRatio = 0.4
         rho = 1000
         cable_r = self.cable_r
@@ -523,9 +511,9 @@ class Parachute:
 
         #Fix the payload
         file.write('DISP\n')
-        for i in range(self.capsule_n*(self.layer_n+1)):
+        for i in range(self.capsule_n*self.layer_n):
             node_id = self.capsule_node[i] + 1
-            if(i != layer_n//2 and i != layer_n//2 + 2*(layer_n+1)): #these are the connected nodes
+            if(i != layer_n//2 and i != layer_n//2 + (layer_n+1) and i != layer_n//2 + 2*(layer_n+1)): #these are the connected nodes
                 for freedom in range(1,7):
                     #Fix payload
                     file.write('%d %d 0.0\n' %(node_id, freedom))
@@ -542,47 +530,144 @@ class Parachute:
 
         file.close()
 
+    def _write_domain_geo(self, file_name, refineOrNot = False, cl_cable = 0.05, cl = 0.05, cl_bg = 1):
+        '''
+        we have cl for small scale, cl_bg for backgroud mesh scale
+        layer_cl for layer thickness
+
+        :param file_name:
+        :param refineOrNot:
+        :return:
+        '''
+
+
+        x_l = -100.
+        x_r = -x_l
+        y_l =  120.
+        y_r =  -180.
+        R = 12;
+        DistMax = min(abs(x_r - x_l) / 2.0, abs(y_r - y_l) / 2.0)/2.0
+        print('DistMax is ', DistMax)
+
+        layer_n, canopy_n, capsule_n , cl_layer = self.layer_n, self.canopy_n, self.capsule_n, self.layer_t
+        file = open(file_name, 'w')
+        point_id = 1
+        file.write('cl = %.15f;\n' %cl)
+        file.write('cl_cable = %.15f;\n' % cl_cable)
+        file.write('cl_bg = %.15f;\n' %cl_bg)
+        file.write('cl_layer = %.15f;\n' %cl_layer)
+
+        if(refineOrNot):
+            #point for field 1, ball
+            point_id = FluidGeo.writeElem(file, 'Point', point_id, [0.0,0.0,0.0 , 'cl'])
+            # point for field 2, cable
+            point_id = FluidGeo.writeElem(file, 'Point', point_id, [self.structure_coord[layer_n//2,0], self.structure_coord[layer_n//2,1], 0.0, 'cl'])
+            point_id = FluidGeo.writeElem(file, 'Point', point_id, [self.structure_coord[(layer_n + 1) * (canopy_n - 1) + layer_n // 2,0],
+                                                                    self.structure_coord[(layer_n + 1) * (canopy_n - 1) + layer_n // 2,1], 0.0, 'cl'])
+            #beam node coord in self.structure_coord, row (layer_n + 1) * canopy_n + (layer_n + 1)*capsule_n to end
+            for xyz in self.structure_coord[(layer_n + 1) * canopy_n + (layer_n + 1)*capsule_n :,:]:
+                point_id = FluidGeo.writeElem(file, 'Point', point_id, [xyz[0], xyz[1], 0.0, 'cl'])
+
+
+            capsule_n, capsule_x, capsule_y = AeroShell.AeroShell(self.capsule_type, self.capsule_xScale, self.capsule_yScale)
+
+            capsule_n, capsule_x, capsule_y = Folding.curveRefine(capsule_n, capsule_x, capsule_y, self.cable_cl, closeOrNot = True)
+
+            for i in range(capsule_n):
+                point_id = FluidGeo.writeElem(file, 'Point', point_id, [capsule_x[i], capsule_y[i], 0.0, 'cl'])
+
+            FluidGeo.writeMeshSize(file, 'Attractor',1, [1])
+            FluidGeo.writeMeshSize(file, 'Attractor',2, range(1,point_id) )
+            #file, type, field_id, IField, LcMin, LcMax, DistMin, DistMax, Sigmoid
+            FluidGeo.writeMeshSize(file, 'Threshold', 3, 1, 'cl', 'cl_bg', R, DistMax, 0)
+            FluidGeo.writeMeshSize(file, 'Threshold', 4, 2, 'cl_cable', 'cl_bg', 2*cl_cable, DistMax, 0)
+            FluidGeo.writeMeshSize(file, 'Min', 5, [3,4])
+
+        #Background Mesh, the domain is a square (x_l, x_r)*(y_l, y_r)
+        FluidGeo.backgroundMesh(file, 'cube', x_l, x_r, y_l, y_r, layer_n, point_id)
+        file.close()
 
 
 
 
-#nPoints, xArray, yArray = curveRefine(num,x,y, cl,False, True)
+if __name__ == "__main__":
+    parachute = True
 
-#nPoints, xArray, yArray = straightLine(100)
+    if(parachute):
 
+        canopy_type = 'line'
+        canopy_cl = 0.05
+        canopy_xScale, canopy_yScale = 10.674,1.
+        layer_n = 4
+        layer_t = 0.05
+        k = 1
+        canopy = [canopy_type, canopy_cl, canopy_xScale, canopy_yScale, layer_n, layer_t, k]
 
-canopy_type = 'line'
-canopy_cl = 10
-canopy_xScale, canopy_yScale = 1.,1.
-layer_n = 4
-layer_t = 1
-k = 1
-canopy = [canopy_type, canopy_cl, canopy_xScale, canopy_yScale, layer_n, layer_t, k]
-
-capsule_type = 'square'
-capsule_xScale, capsule_yScale = 0.3115, -44.721
-capsule =  [capsule_type, capsule_xScale, capsule_yScale]
-
-
-cable = ['straight','straight','straight','straight','straight','straight']
-cable_cl = 100;
-cable_k = 4
-cable_r = 0.1
-cable_joint = np.array([[0.,-35.826 ],[0., -43.372]])
-phantom_offset = 1
-cable.extend([cable_cl, cable_k,cable_r, cable_joint, phantom_offset])
+        capsule_type = 'AFL'
+        capsule_xScale, capsule_yScale = 0.3115, -44.721
+        capsule =  [capsule_type, capsule_xScale, capsule_yScale]
 
 
-parachute_mesh = Parachute(canopy, cable, capsule)
+        cable = ['straight','straight','straight','straight','straight','straight']
+        cable_cl = 0.05;
+        cable_k = 4
+        cable_r = 0.00215
+        cable_joint = np.array([[0.,-35.826 ],[0., -43.372]])
+        phantom_offset = 1
+        cable.extend([cable_cl, cable_k,cable_r, cable_joint, phantom_offset])
 
-parachute_mesh._file_write_structure_top()
 
-#Canopy_Matlaw = 'HyperElasticPlaneStress'
-Canopy_Matlaw = 'PlaneStressViscoNeoHookean'
-parachute_mesh._file_write_aeros_mesh_include(Canopy_Matlaw)
+        parachute_mesh = Parachute(canopy, capsule, cable)
 
-parachute_mesh._file_write_common_data_include()
 
-parachute_mesh._file_write_embedded_surface_top()
+        parachute_mesh._file_write_structure_top()
 
-parachute_mesh._file_write_surface_top()
+        #Canopy_Matlaw = 'HyperElasticPlaneStress'
+        Canopy_Matlaw = 'PlaneStressViscoNeoHookean'
+        parachute_mesh._file_write_aeros_mesh_include(Canopy_Matlaw, -4000.0)
+
+        parachute_mesh._file_write_common_data_include()
+
+        parachute_mesh._file_write_embedded_surface_top()
+
+        parachute_mesh._file_write_surface_top()
+
+        parachute_mesh._write_domain_geo('domain.geo', True, cl_cable = 0.05, cl = 0.05, cl_bg = 1)
+
+    else:
+        canopy_type = 'line'
+        canopy_cl = 100
+        canopy_xScale, canopy_yScale = 10.674, 1.
+        layer_n = 4
+        layer_t = 1.0;
+        k = 1
+        canopy = [canopy_type, canopy_cl, canopy_xScale, canopy_yScale, layer_n, layer_t, k]
+
+        capsule_type = 'AFL'
+        capsule_xScale, capsule_yScale = 0.3115, -44.721
+        capsule = [capsule_type, capsule_xScale, capsule_yScale]
+
+        cable = ['straight', 'straight', 'straight', 'straight', 'straight', 'straight']
+        cable_cl = 1000;
+        cable_k = 4
+        cable_r = 0.1
+        cable_joint = np.array([[0., -35.826], [0., -43.372]])
+        phantom_offset = 1
+        cable.extend([cable_cl, cable_k, cable_r, cable_joint, phantom_offset])
+
+        parachute_mesh = Parachute(canopy, capsule, cable)
+
+        parachute_mesh._file_write_structure_top()
+
+        # Canopy_Matlaw = 'HyperElasticPlaneStress'
+        Canopy_Matlaw = 'PlaneStressViscoNeoHookean'
+        parachute_mesh._file_write_aeros_mesh_include(Canopy_Matlaw, -4000.0)
+
+        parachute_mesh._file_write_common_data_include()
+
+        parachute_mesh._file_write_embedded_surface_top()
+
+        parachute_mesh._file_write_surface_top()
+
+        parachute_mesh._write_domain_geo('domain.geo', True, 0.5, 0.5, 1.0)
+

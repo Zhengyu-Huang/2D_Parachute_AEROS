@@ -148,6 +148,7 @@ def sFolding(k,scaleX,scaleY):
     return num-4*k+2, x*scaleX, y*scaleY
 
 def curveRefine(num, xx, yy,cl, closeOrNot = False, plotOrNot = True):
+
     segNum = num if closeOrNot else num - 1
 
     numArray = np.zeros(segNum + 1,np.int32)
@@ -157,7 +158,7 @@ def curveRefine(num, xx, yy,cl, closeOrNot = False, plotOrNot = True):
         n = max(np.ceil(ds/cl), 1) #n small segments on each segment
         numArray[i+1] = numArray[i] + n;
 
-    nPoints = numArray[-1]+1
+    nPoints = numArray[-1]+ 1
     xArray = np.zeros(nPoints)
     yArray = np.zeros(nPoints)
 
@@ -167,10 +168,10 @@ def curveRefine(num, xx, yy,cl, closeOrNot = False, plotOrNot = True):
 
     if(plotOrNot):
         plt.plot(xArray, yArray,'-*')
-        plt.ylim([-0.5,1.5])
-        plt.xlim([-1,1])
         plt.show()
-    return nPoints, xArray, yArray
+
+
+    return (nPoints-1, xArray[0:-1], yArray[0:-1]) if closeOrNot else (nPoints, xArray, yArray)
 
 
 if __name__ == "__main__":

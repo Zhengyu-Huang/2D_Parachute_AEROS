@@ -29,7 +29,7 @@ def AFL(xa, ya, xb, yb, k):
     x_p = np.append(np.append([-x1,0,x1,x2,x3,x4,],nose_x),[-x4,-x3,-x2])
     y_p = np.append(np.append([y1,0,y1,y2,y3,y4], nose_y), [y4,y3,y2])
 
-    num = k+8
+    num = k+9
     scale = (xb-xa)/(2*x1)
     x,y = x_p*scale, y_p *scale
     x , y = x + xa - x[0], y + ya - y[0]
