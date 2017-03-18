@@ -314,11 +314,7 @@ class Parachute:
         return id
 
     def _write_capsule_surface(self,file,topo,id):
-
-
-
         capsule_node =self.capsule_node
-
         layer_n = self.layer_n
         for i in range(self.capsule_n):
             for j in range(layer_n):
@@ -424,6 +420,38 @@ class Parachute:
         id = self._write_cable_surface(file,topo,id)
 
 
+
+
+        file.close()
+
+    def _file_write_capsule_surface_top(self):
+        coord = self.embedded_coord
+        layer_n, canopy_n, capsule_n = self.layer_n, self.canopy_n, self.capsule_n
+
+        file = open('capsuleSurface.top','w')
+
+        file.write('Nodes nodeset\n')
+        id = 1
+        for xyz in coord[(layer_n + 1) * canopy_n : (layer_n + 1) * canopy_n + (layer_n + 1) * capsule_n,:]:
+            file.write('%d   %.15f  %.15f  %.15f \n' % (id, xyz[0], xyz[1], xyz[2]))
+            id += 1
+
+
+        id = 1
+        topo = 4
+        file.write('Elements StickMovingSurface_9 using nodeset\n')
+        for i in range(self.capsule_n):
+            for j in range(layer_n):
+                # (layer_n+1)*i + j        (layer_n+1)*(i+1) + j
+                # (layer_n+1)*i + j + 1    (layer_n+1)*(i+1) + j + 1
+                file.write('%d   %d  %d  %d %d \n' % (id, topo, (layer_n + 1) * i + j + 1,
+                                                                (layer_n + 1) * ((i + 1) % self.capsule_n) + j + 1 + 1,
+                                                                (layer_n + 1) * ((i + 1) % self.capsule_n) + j + 1))
+                id += 1
+                file.write('%d   %d  %d  %d %d \n' % (id, topo, (layer_n + 1) * i + j + 1,
+                                                                (layer_n + 1) * i + j + 1 + 1,
+                                                                (layer_n + 1) * ((i + 1) % self.capsule_n) + j + 1 + 1))
+                id += 1
 
 
         file.close()
@@ -598,12 +626,19 @@ class Parachute:
             #point for field 1, ball
             point_id = FluidGeo.writeElem(file, 'Point', point_id, [0.0,0.0,0.0 , 'cl'])
             # point for field 2, cable
-            point_id = FluidGeo.writeElem(file, 'Point', point_id, [self.structure_coord[layer_n//2,0], self.structure_coord[layer_n//2,1], 0.0, 'cl'])
-            point_id = FluidGeo.writeElem(file, 'Point', point_id, [self.structure_coord[(layer_n + 1) * (canopy_n - 1) + layer_n // 2,0],
-                                                                    self.structure_coord[(layer_n + 1) * (canopy_n - 1) + layer_n // 2,1], 0.0, 'cl'])
+            disturb = (np.random.uniform(0.,1.,2) - 0.5) * cl_cable/2.0# randomize the points location
+
+            point_id = FluidGeo.writeElem(file, 'Point', point_id, [self.structure_coord[layer_n//2,0] + disturb[0],
+                                                                    self.structure_coord[layer_n//2,1] + disturb[1],
+                                                                    0.0, 'cl'])
+            disturb = (np.random.uniform(0., 1., 2) - 0.5) * cl / 2.0  # randomize the points location
+            point_id = FluidGeo.writeElem(file, 'Point', point_id, [self.structure_coord[(layer_n + 1) * (canopy_n - 1) + layer_n // 2,0] + disturb[0],
+                                                                    self.structure_coord[(layer_n + 1) * (canopy_n - 1) + layer_n // 2,1] + disturb[1],
+                                                                    0.0, 'cl'])
             #beam node coord in self.structure_coord, row (layer_n + 1) * canopy_n + (layer_n + 1)*capsule_n to end
             for xyz in self.structure_coord[(layer_n + 1) * canopy_n + (layer_n + 1)*capsule_n :,:]:
-                point_id = FluidGeo.writeElem(file, 'Point', point_id, [xyz[0], xyz[1], 0.0, 'cl'])
+                disturb = (np.random.uniform(0., 1., 2) - 0.5) * cl_cable / 2.0  # randomize the points location
+                point_id = FluidGeo.writeElem(file, 'Point', point_id, [xyz[0]+disturb[0], xyz[1]+disturb[1], 0.0, 'cl'])
 
 
             capsule_n, capsule_x, capsule_y = AeroShell.AeroShell(self.capsule_type, self.capsule_xScale, self.capsule_yScale)
@@ -611,7 +646,8 @@ class Parachute:
             capsule_n, capsule_x, capsule_y = Folding.curveRefine(capsule_n, capsule_x, capsule_y, self.cable_cl, closeOrNot = True)
 
             for i in range(capsule_n):
-                point_id = FluidGeo.writeElem(file, 'Point', point_id, [capsule_x[i], capsule_y[i], 0.0, 'cl'])
+                disturb = (np.random.uniform(0., 1., 2) - 0.5) * cl_cable / 2.0  # randomize the points location
+                point_id = FluidGeo.writeElem(file, 'Point', point_id, [capsule_x[i]+disturb[0], capsule_y[i]+disturb[1], 0.0, 'cl'])
 
             FluidGeo.writeMeshSize(file, 'Attractor',1, [1])
             FluidGeo.writeMeshSize(file, 'Attractor',2, range(1,point_id) )
@@ -665,7 +701,9 @@ if __name__ == "__main__":
 
         parachute_mesh._file_write_common_data_include()
 
-        parachute_mesh._file_write_embedded_surface_top(True)
+        parachute_mesh._file_write_embedded_surface_top(False)
+
+        parachute_mesh._file_write_capsule_surface_top()
 
         parachute_mesh._file_write_surface_top()
 
@@ -703,6 +741,8 @@ if __name__ == "__main__":
         parachute_mesh._file_write_common_data_include()
 
         parachute_mesh._file_write_embedded_surface_top(True)
+
+        parachute_mesh._file_write_capsule_surface_top()
 
         parachute_mesh._file_write_surface_top()
 
