@@ -76,7 +76,7 @@ class Parachute:
         # Capsule node
         #######################################################################################
 
-        capsule_n, capsule_x, capsule_y = AeroShell.AeroShell(capsule_type, capsule_xScale, capsule_yScale)
+        capsule_n, capsule_x, capsule_y, cable_attach = AeroShell.AeroShell(capsule_type, capsule_xScale, capsule_yScale,cable_cl)
         self.capsule_n = capsule_n
         self.capsule_node = list(range((layer_n + 1) * canopy_n, (layer_n + 1) * canopy_n + (layer_n + 1)*capsule_n))
 
@@ -89,8 +89,8 @@ class Parachute:
                        [cable_joint[0,0],cable_joint[0,1],layer_n//2*layer_t], [cable_joint[1,0],cable_joint[1,1],layer_n//2*layer_t],
                        [cable_joint[1,0],cable_joint[1,1],layer_n//2*layer_t], [cable_joint[1,0],cable_joint[1,1],layer_n//2*layer_t]],dtype= float)
         self.Bs = np.array([[cable_joint[0,0],cable_joint[0,1],layer_n//2*layer_t], [cable_joint[0,0],cable_joint[0,1],layer_n//2*layer_t],
-                       [cable_joint[1,0],cable_joint[1,1],layer_n//2*layer_t], [capsule_x[0],capsule_y[0],layer_n//2*layer_t],
-                       [capsule_x[1],capsule_y[1],layer_n//2*layer_t], [capsule_x[2],capsule_y[2],layer_n//2*layer_t]], dtype = float)
+                       [cable_joint[1,0],cable_joint[1,1],layer_n//2*layer_t], [capsule_x[cable_attach[0]],capsule_y[cable_attach[0]],layer_n//2*layer_t],
+                       [capsule_x[cable_attach[1]],capsule_y[cable_attach[1]],layer_n//2*layer_t], [capsule_x[cable_attach[2]],capsule_y[cable_attach[2]],layer_n//2*layer_t]], dtype = float)
 
         cables_n, cables_coord, phantoms_coord = Cable.Cables(cable_type, self.As, self.Bs, cable_cl, cable_k, cable_r)
         self.cables_n = cables_n
@@ -107,9 +107,9 @@ class Parachute:
         self.cables_node[0][0], self.cables_node[0][-1] = self.canopy_node[layer_n // 2], cable_joint_node[0]
         self.cables_node[1][0], self.cables_node[1][-1] = self.canopy_node[(layer_n + 1) * (canopy_n - 1) + layer_n // 2], cable_joint_node[0]
         self.cables_node[2][0], self.cables_node[2][-1] = cable_joint_node[0], cable_joint_node[1]
-        self.cables_node[3][0], self.cables_node[3][-1] = cable_joint_node[1], self.capsule_node[layer_n//2]
-        self.cables_node[4][0], self.cables_node[4][-1] = cable_joint_node[1], self.capsule_node[layer_n//2 +    1 +layer_n]
-        self.cables_node[5][0], self.cables_node[5][-1] = cable_joint_node[1], self.capsule_node[layer_n//2 + 2*(1+layer_n)]
+        self.cables_node[3][0], self.cables_node[3][-1] = cable_joint_node[1], self.capsule_node[layer_n//2 + cable_attach[0]*(1 + layer_n)]
+        self.cables_node[4][0], self.cables_node[4][-1] = cable_joint_node[1], self.capsule_node[layer_n//2 + cable_attach[1]*(1 + layer_n)]
+        self.cables_node[5][0], self.cables_node[5][-1] = cable_joint_node[1], self.capsule_node[layer_n//2 + cable_attach[2]*(1 + layer_n)]
 
         self.phantoms_node = []
         phantom_start = (layer_n + 1) * canopy_n + (layer_n + 1)*capsule_n
@@ -641,7 +641,7 @@ class Parachute:
                 point_id = FluidGeo.writeElem(file, 'Point', point_id, [xyz[0]+disturb[0], xyz[1]+disturb[1], 0.0, 'cl'])
 
 
-            capsule_n, capsule_x, capsule_y = AeroShell.AeroShell(self.capsule_type, self.capsule_xScale, self.capsule_yScale)
+            capsule_n, capsule_x, capsule_y,_= AeroShell.AeroShell(self.capsule_type, self.capsule_xScale, self.capsule_yScale, self.cable_cl)
 
             capsule_n, capsule_x, capsule_y = Folding.curveRefine(capsule_n, capsule_x, capsule_y, self.cable_cl, closeOrNot = True)
 
