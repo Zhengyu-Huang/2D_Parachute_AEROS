@@ -12,6 +12,7 @@ def Canopy(type, cl, xScale, yScale, *args):
     :param closeOrNot:
     :return:
     '''
+
     if(type == 'sinCurve'):
         return sinCurve(cl, xScale, yScale, *args)
     elif(type == 'line'):
@@ -64,6 +65,8 @@ def sinCurve(cl, xScale, yScale, plotOrNot, *args):
 #int* yArray, y coordinates of these nodes
 def straightLine(cl, xScale, yScale, plotOrNot):
     nPoints = int(2*xScale/cl+1)
+    if(nPoints%2 == 0):
+        nPoints += 1
     xArray = np.linspace(-xScale,xScale,num=nPoints)
     yArray = 0*xArray
     return nPoints, xArray, yArray

@@ -26,9 +26,9 @@ class Parachute:
 #                                                  |
 #                                                  3
 #                                                  |B
-#                                                 /|\
-#                                                4 5 6
-#                                               /  |  \
+#                                                  |
+#                                                  4
+#                                                  |
 #                                              *********
 # The parachute has canopy part, capsult part and 6 cables
 ##################################################################################################################
@@ -85,13 +85,11 @@ class Parachute:
         # Cable node
         #######################################################################################
 
-        #we have 6 cables
-        self.As = np.array([[canopy_x[0],canopy_y[0],layer_n//2*layer_t],           [canopy_x[-1],canopy_y[-1],layer_n//2*layer_t],
-                       [cable_joint[0,0],cable_joint[0,1],layer_n//2*layer_t], [cable_joint[1,0],cable_joint[1,1],layer_n//2*layer_t],
-                       [cable_joint[1,0],cable_joint[1,1],layer_n//2*layer_t], [cable_joint[1,0],cable_joint[1,1],layer_n//2*layer_t]],dtype= float)
+        #we have 4 cables
+        self.As = np.array([[canopy_x[0],canopy_y[0],layer_n//2*layer_t], [canopy_x[-1],canopy_y[-1],layer_n//2*layer_t],
+                       [cable_joint[0,0],cable_joint[0,1],layer_n//2*layer_t], [cable_joint[1,0],cable_joint[1,1],layer_n//2*layer_t]],dtype= float)
         self.Bs = np.array([[cable_joint[0,0],cable_joint[0,1],layer_n//2*layer_t], [cable_joint[0,0],cable_joint[0,1],layer_n//2*layer_t],
-                       [cable_joint[1,0],cable_joint[1,1],layer_n//2*layer_t], [capsule_x[cable_attach[0]],capsule_y[cable_attach[0]],layer_n//2*layer_t],
-                       [capsule_x[cable_attach[1]],capsule_y[cable_attach[1]],layer_n//2*layer_t], [capsule_x[cable_attach[2]],capsule_y[cable_attach[2]],layer_n//2*layer_t]], dtype = float)
+                       [cable_joint[1,0],cable_joint[1,1],layer_n//2*layer_t], [capsule_x[cable_attach[1]],capsule_y[cable_attach[1]],layer_n//2*layer_t]], dtype = float)
 
         cables_n, cables_coord, phantoms_coord = Cable.Cables(cable_type, self.As, self.Bs, cable_cl, cable_k, cable_r)
         self.cables_n = cables_n
@@ -99,22 +97,19 @@ class Parachute:
         self.cables_node = []
         cable_joint_node =[(layer_n + 1) * canopy_n + (layer_n + 1)*capsule_n, (layer_n + 1) * canopy_n + (layer_n + 1)*capsule_n + 1]
         cable_start = (layer_n + 1) * canopy_n + (layer_n + 1)*capsule_n + 1
-        for i in range(6):
+        for i in range(4):
             self.cables_node.append(list(range(cable_start,cable_start + cables_n[i])))
             cable_start += cables_n[i] - 2
 
         self.structure_node_n =  cable_start+1
-
         self.cables_node[0][0], self.cables_node[0][-1] = self.canopy_node[layer_n // 2], cable_joint_node[0]
         self.cables_node[1][0], self.cables_node[1][-1] = self.canopy_node[(layer_n + 1) * (canopy_n - 1) + layer_n // 2], cable_joint_node[0]
         self.cables_node[2][0], self.cables_node[2][-1] = cable_joint_node[0], cable_joint_node[1]
-        self.cables_node[3][0], self.cables_node[3][-1] = cable_joint_node[1], self.capsule_node[layer_n//2 + cable_attach[0]*(1 + layer_n)]
-        self.cables_node[4][0], self.cables_node[4][-1] = cable_joint_node[1], self.capsule_node[layer_n//2 + cable_attach[1]*(1 + layer_n)]
-        self.cables_node[5][0], self.cables_node[5][-1] = cable_joint_node[1], self.capsule_node[layer_n//2 + cable_attach[2]*(1 + layer_n)]
+        self.cables_node[3][0], self.cables_node[3][-1] = cable_joint_node[1], self.capsule_node[layer_n//2 + cable_attach[1]*(1 + layer_n)]
 
         self.phantoms_node = []
         phantom_start = (layer_n + 1) * canopy_n + (layer_n + 1)*capsule_n
-        for i in range(6):
+        for i in range(4):
             self.phantoms_node.append(list(range(phantom_start,phantom_start + cable_k*(cables_n[i] - 2*phantom_offset) + 2)))
             phantom_start += cable_k*(cables_n[i] - 2*phantom_offset) + 2
         #add 2 because we wants to close the beam surface
@@ -143,7 +138,7 @@ class Parachute:
         for i in range(2):
             self.structure_coord[cable_joint_node[i],0:2],self.structure_coord[cable_joint_node[i],2] = cable_joint[i,:], layer_n//2*layer_t
 
-        for cable_i in range(6):
+        for cable_i in range(4):
             for j in range(phantom_offset, cables_n[cable_i] - phantom_offset):
                 self.structure_coord[self.cables_node[cable_i][j], :] = cables_coord[cable_i][j,:]
                 #first node for the beam surface
@@ -201,7 +196,7 @@ class Parachute:
         :return:
         '''
         id = start_id
-        for i in range(6):
+        for i in range(4):
             cable_node = self.cables_node[i]
             for j in range(len(cable_node) - 1):
                 file.write('%d   %d   %d   %d\n' %(id, topo, cable_node[j] + 1, cable_node[j + 1] + 1))
@@ -213,7 +208,7 @@ class Parachute:
 
         file.write('EFRAMES\n')
         ele_id = 2*self.layer_n*(self.capsule_n + self.canopy_n - 1) + 1
-        for cable_i in range(6):# we have 6 cables
+        for cable_i in range(4):# we have 4 cables
             cable_node = self.cables_node[cable_i] #take one cable
             for j in range(len(cable_node) - 1):
                 A = self.structure_coord[cable_node[j],:]
@@ -233,7 +228,7 @@ class Parachute:
     def _write_cable_surface(self,file,topo,id):
         k = self.cable_k
         temp = range(1, k + 1)
-        for cable_i in range(6):
+        for cable_i in range(4):
             phantom_node = self.phantoms_node[cable_i]
             n = len(self.cables_node[cable_i])
 
@@ -319,7 +314,6 @@ class Parachute:
         layer_n = self.layer_n
         for i in range(self.capsule_n):
             for j in range(layer_n):
-
                 # (layer_n+1)*i + j        (layer_n+1)*(i+1) + j
                 # (layer_n+1)*i + j + 1    (layer_n+1)*(i+1) + j + 1
                 file.write('%d   %d  %d  %d %d \n' % (id, topo, capsule_node[(layer_n + 1) * i + j] + 1,
@@ -503,7 +497,7 @@ class Parachute:
 
         cable_beam_attr = 3;
         start_ele = end_ele + 1
-        for i in range(6):
+        for i in range(4):
             end_ele += self.cables_n[i] - 1
         file.write('%d   %d   %d\n' %(start_ele, end_ele, cable_beam_attr))
 
@@ -701,7 +695,7 @@ if __name__ == "__main__":
         capsule =  [capsule_type, capsule_xScale, capsule_yScale, capsule_cl]
 
 
-        cable = ['straight','straight','straight','straight','straight','straight']
+        cable = ['straight','straight','straight','straight']
         cable_cl = 0.05;
         cable_k = 4
         cable_r = 0.00215
@@ -758,7 +752,7 @@ if __name__ == "__main__":
         capsule_xScale, capsule_yScale = 0.3115, -44.721
         capsule = [capsule_type, capsule_xScale, capsule_yScale, capsule_cl]
 
-        cable = ['straight', 'straight', 'straight', 'straight', 'straight', 'straight']
+        cable = ['straight', 'straight', 'straight', 'straight']
         cable_cl = 0.05;
         cable_k = 4
         cable_r = 0.00215
@@ -813,7 +807,7 @@ if __name__ == "__main__":
         capsule_xScale, capsule_yScale = 0.3115, -44.721
         capsule = [capsule_type, capsule_xScale, capsule_yScale, capsule_cl]
 
-        cable = ['straight', 'straight', 'straight', 'straight', 'straight', 'straight']
+        cable = ['straight', 'straight', 'straight', 'straight']
 
         cable_k = 4
         cable_r = 0.00215
