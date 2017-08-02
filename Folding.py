@@ -28,8 +28,6 @@ def Canopy(type, cl, xScale, yScale, *args):
     elif(type == 'zCurve'):
         num, xx, yy = zCurve(xScale, yScale)
 
-
-
     return curveRefine(num, xx, yy,cl)
 
 
@@ -85,11 +83,23 @@ def candle(xScale, yScale):
     return num, xx, yy
 
 
-def zCurve(scaleX,scaleY):
+def zCurve(xScale,yScale):
+    '''
     x = np.array([-0.5, -0.1, -0.5, 0.5, 0.1,  0.5])
     y = np.array([0.0,  0,   1,    1,   0.0 ,  0.0])
+    '''
 
-    return 6, x*scaleX, y*scaleY
+    hy =  1e-3  # thickness
+
+    hx =  0.05 - hy  # canopy_cl
+    x = np.array([-xScale/2.0, -xScale/4.0, -xScale/4.0 + hx, -xScale/4.0, -xScale/2.0, -xScale/2.0 - hx, -xScale/2.0,
+                   xScale/2.0,  xScale/2.0 +hx,   xScale/2.0,  xScale/4.0,  xScale/4.0 - hx,  xScale/4.0,  xScale/2.0])
+
+    y = np.array([0, 0, hy/2, hy, hy, 1.5*hy, 2*hy,
+                  2*hy, 1.5*hy, hy, hy, 0.5*hy, 0,0])
+
+
+    return len(x), x, y
 
 
 
@@ -173,7 +183,11 @@ def curveRefine(num, xx, yy,cl, closeOrNot = False, plotOrNot = True):
         plt.plot(xArray, yArray,'-*')
         plt.show()
 
-
+    if(closeOrNot):
+        cornerNode = numArray[0:-1]
+    else:
+        cornerNode = numArray[1:-1]
+    print('cornerNode is ', cornerNode)
     return (nPoints-1, xArray[0:-1], yArray[0:-1]) if closeOrNot else (nPoints, xArray, yArray)
 
 

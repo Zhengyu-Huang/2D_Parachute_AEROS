@@ -490,7 +490,7 @@ class Parachute:
         file = open('aeros.mesh.include','w')
         # elementId, element attribute(material) id
 
-        file.write('ATTRIBUTS\n')
+        file.write('ATTRIBUTES\n')
         canopy_attr = 1;
         start_ele = 1
         end_ele = 2*self.layer_n*(self.canopy_n - 1)

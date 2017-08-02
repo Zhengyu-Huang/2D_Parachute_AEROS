@@ -484,7 +484,7 @@ class Parachute:
         file = open('aeros.mesh.include','w')
         # elementId, element attribute(material) id
 
-        file.write('ATTRIBUTS\n')
+        file.write('ATTRIBUTES\n')
         canopy_attr = 1;
         start_ele = 1
         end_ele = 2*self.layer_n*(self.canopy_n - 1)
@@ -677,9 +677,20 @@ class Parachute:
 
 
 if __name__ == "__main__":
-    type = "line"
+    type = "sFolding"
+    ######################
+    # About scale
+    # the original curve is generally in a box [-0.5,0.5][0,1]
+    #
+    #
+    #############################
+    if(type == 'zCurve'):
+        scale = [10.674, 1., 1]  #canopy_xScale, canopy_yScale, k
+    elif(type == 'sFolding'):
+        k = 3
+        scale = [10.674*2/(4*k - 1)  ,  0.5,  k]
 
-    if(type == "line"):
+    if(type == "line"): #this can work
 
         canopy_type = 'line'
         canopy_cl = 0.05
@@ -738,14 +749,14 @@ if __name__ == "__main__":
 
         parachute_mesh._write_domain_geo('domain.geo',  mesh_background, mesh_canopy, mesh_capsule, mesh_cable, True)
 
-    elif(type == "hat"):
-        canopy_type = 'hat'
+    else:
+        canopy_type = type
         canopy_cl = 0.05
-        capsule_cl = 0.001
-        canopy_xScale, canopy_yScale = 0.1, 10.
+        capsule_cl = 0.002
+        canopy_xScale, canopy_yScale, k = scale #10.674,1.,1
         layer_n = 4
-        layer_t = 0.025
-        k = 1
+        layer_t = 0.1
+
         canopy = [canopy_type, canopy_cl, canopy_xScale, canopy_yScale, layer_n, layer_t, k]
 
         capsule_type = 'AFL'
@@ -754,61 +765,6 @@ if __name__ == "__main__":
 
         cable = ['straight', 'straight', 'straight', 'straight']
         cable_cl = 0.05;
-        cable_k = 4
-        cable_r = 0.00215
-        cable_joint = np.array([[0., -35.826], [0., -43.372]])
-        phantom_offset = 1
-        cable.extend([cable_cl, cable_k, cable_r, cable_joint, phantom_offset])
-
-        parachute_mesh = Parachute(canopy, capsule, cable)
-
-        parachute_mesh._file_write_structure_top()
-
-        Canopy_Matlaw = 'HyperElasticPlaneStress'
-        # Canopy_Matlaw = 'PlaneStressViscoNeoHookean'
-        parachute_mesh._file_write_aeros_mesh_include(Canopy_Matlaw)
-
-        parachute_mesh._file_write_common_data_include()
-
-        parachute_mesh._file_write_embedded_surface_top(False)
-
-        parachute_mesh._file_write_capsule_surface_top()
-
-        parachute_mesh._file_write_surface_top()
-
-        ##################Fluid Mesh
-
-        x_l = -100.
-        x_r = -x_l
-        y_l = 150.
-        y_r = -80.
-        mesh_background = [cl_bg, x_l, y_l, x_r, y_r]
-
-        Dist_Max = min(abs(x_r - x_l) / 2.0, abs(y_l - y_r) / 2.0) / 2.0
-        R = 12
-        mesh_canopy = [canopy_cl, R, Dist_Max, 1.0]
-        mesh_capsule = [capsule_cl, 2 * capsule_cl, Dist_Max]
-        mesh_cable = [cable_cl, R, Dist_Max]
-
-        parachute_mesh._write_domain_geo('domain.geo', mesh_background, mesh_canopy, mesh_capsule, mesh_cable, True)
-
-    else:
-        canopy_type = 'line'
-        canopy_cl = 0.1
-        capsule_cl = 0.1
-        cable_cl = 0.1;
-        canopy_xScale, canopy_yScale = 10.674, 1.
-        layer_n = 4
-        layer_t = 0.1
-        k = 1
-        canopy = [canopy_type, canopy_cl, canopy_xScale, canopy_yScale, layer_n, layer_t, k]
-
-        capsule_type = 'AFL'
-        capsule_xScale, capsule_yScale = 0.3115, -44.721
-        capsule = [capsule_type, capsule_xScale, capsule_yScale, capsule_cl]
-
-        cable = ['straight', 'straight', 'straight', 'straight']
-
         cable_k = 4
         cable_r = 0.00215
         cable_joint = np.array([[0., -35.826], [0., -43.372]])
@@ -847,3 +803,4 @@ if __name__ == "__main__":
         mesh_cable = [2 * cable_cl, R, Dist_Max]
 
         parachute_mesh._write_domain_geo('domain.geo', mesh_background, mesh_canopy, mesh_capsule, mesh_cable, True)
+
