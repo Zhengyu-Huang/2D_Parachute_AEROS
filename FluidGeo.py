@@ -1,4 +1,11 @@
 def writeMeshSize(file , type, field_id,  *args):
+    '''
+    :param file: file to write
+    :param type: attractor, threshold or min
+    :param field_id:
+    :param args:
+    :return:
+    '''
 
     if type == 'Attractor':
         node_list = args[-1]
@@ -40,6 +47,17 @@ def writeElem(file, type, id, list):
 
 
 def backgroundMesh(file, type, x_l, x_r, y_l , y_r, layer_n, point_id=1, line_id=1, line_loop_id=1, plane_id=1):
+    '''
+
+    :param file: file name
+    :param type: 'cube' the cube is [x_l, x_r, y_l, y_r]; 'cicle', the circle is centered at (x_l,x_r), radius is y_l
+    :param layer_n:
+    :param point_id:
+    :param line_id:
+    :param line_loop_id:
+    :param plane_id:
+    :return:
+    '''
     if(type == 'cube'):
         file.write('x_l = %.15f;\n' %x_l)
         file.write('x_r = %.15f;\n' %x_r)
@@ -70,7 +88,34 @@ def backgroundMesh(file, type, x_l, x_r, y_l , y_r, layer_n, point_id=1, line_id
         writePhysical(file, 'Surface', 'OutletFixedSurface', ['cube_surface[2]', 'cube_surface[3]', 'cube_surface[4]', 'cube_surface[5]'])
         writePhysical(file, 'Surface', 'SymmetryFixedSurface', ['cube_surface[0]', plane_id])
         writePhysical(file, 'Volume', 'FluidMesh', ['cube_surface[1]'])
+    if(type == 'circle'):
+        file.write('x_circle_bg = %.15f;\n' % x_l)
+        file.write('y_circle_bg = %.15f;\n' % x_r)
+        file.write('r_bg = %.15f;\n' % y_l)
 
+        point_id = writeElem(file, 'Point', point_id, ['x_circle_bg', 'y_circle_bg', 0.0, 'cl_bg'])
+        point_id = writeElem(file, 'Point', point_id, ['x_circle_bg + r_bg', 'y_circle_bg', 0.0, 'cl_bg'])
+        point_id = writeElem(file, 'Point', point_id, ['x_circle_bg', 'y_circle_bg + r_bg', 0.0, 'cl_bg'])
+        point_id = writeElem(file, 'Point', point_id, ['x_circle_bg - r_bg', 'y_circle_bg', 0.0, 'cl_bg'])
+        point_id = writeElem(file, 'Point', point_id, ['x_circle_bg', 'y_circle_bg - r_bg', 0.0, 'cl_bg'])
+
+        line_id = writeElem(file, 'Circle', line_id, [point_id - 4, point_id - 5, point_id - 3])
+        line_id = writeElem(file, 'Circle', line_id, [point_id - 3, point_id - 5, point_id - 2])
+        line_id = writeElem(file, 'Circle', line_id, [point_id - 2, point_id - 5, point_id - 1])
+        line_id = writeElem(file, 'Circle', line_id, [point_id - 1, point_id - 5, point_id - 4])
+
+        writeElem(file, 'Line Loop', line_loop_id, [line_id - 4, line_id - 3, line_id - 2, line_id - 1])
+        writeElem(file, 'Plane Surface', plane_id, [line_loop_id])
+
+        # extrude the background mesh
+        file.write('circle_surface[] = Extrude {0, 0, %d*' % layer_n)
+        file.write('cl_layer')
+        file.write('} {Surface {%d}; Layers {%d};};\n' % (plane_id, layer_n))
+
+        writePhysical(file, 'Surface', 'OutletFixedSurface',
+                      ['circle_surface[2]', 'circle_surface[3]', 'circle_surface[4]', 'circle_surface[5]'])
+        writePhysical(file, 'Surface', 'SymmetryFixedSurface', ['circle_surface[0]', plane_id])
+        writePhysical(file, 'Volume', 'FluidMesh', ['circle_surface[1]'])
 
 if __name__ == '__main__':
     import sys
@@ -82,8 +127,5 @@ if __name__ == '__main__':
     writePhysical(sys.stdout, 'Volume', 'FluidMesh', ['cube_surface[1]', id])
     writeElem(sys.stdout, 'Point', id, [1,2,3,'cl'])
     writeElem(sys.stdout, 'Line', id, [1,2])
-    backgroundMesh(sys.stdout, 'cube', -1, 1, -1, 1, 4, point_id=1, line_id=1, line_loop_id=1,
+    backgroundMesh(sys.stdout, 'circle', -1, 1, -1, 1, 4, point_id=1, line_id=1, line_loop_id=1,
                    plane_id=1)
-
-
-
