@@ -308,7 +308,7 @@ class Parachute:
                       [nz*nx*(1-np.cos(theta))-ny*np.sin(theta)  ,nz*ny*(1-np.cos(theta)) + nx*np.sin(theta)   ,np.cos(theta) + nz*nz*(1-np.cos(theta)) ]],dtype=float)
 
         phontom_dr = np.empty(shape=[k,3],dtype=float)
-        phontom_dr[0,:] = cable_r*np.cross(dir,e1)
+        phontom_dr[0,:] = cable_r*np.cross(dir,e1)/np.linalg.norm(np.cross(dir,e1))
 
         for i in range(1,k):
             phontom_dr[i,:] = np.dot(R,phontom_dr[i-1,:])
