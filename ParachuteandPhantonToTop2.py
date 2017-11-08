@@ -353,7 +353,7 @@ class Parachute:
 
 
 
-    def __init__(self,canopy_n, canopy_x, canopy_y, cable_n, cable_k, cable_r, layer_n,layer_t, capsule_type, capsule_x, capsule_y = -0.5):
+    def __init__(self,canopy_n, canopy_x, canopy_y, cable_n, cable_k, cable_r, layer_n,layer_t, capsule_type, capsule_x=-0.05, capsule_y = -2.0):
         '''
 
         :param canopy_n: (1D) canopy node number in x direction
@@ -959,38 +959,42 @@ class Parachute:
         file.close()
 
 
+def Origin():
+    cl = 0.01
+    num,x,y = hilbertCurve(2,1,0.25)
+    #num,x,y = sFolding(2,1.0,1.0)
+    #num,x,y = candle( )
+    #num,x,y = zCurve(0.5,1e-3)
+    #num, x,y = straightLine(2)
+    #x,y = curveScaleByLength(x,y,3.0, True)
+    nPoints, xArray, yArray = curveRefine(num,x,y, cl,False, True)
 
-cl = 0.01
-num,x,y = hilbertCurve(2,1,1)
-#num,x,y = sFolding(2,1.0,1.0)
-#num,x,y = candle( )
-#num,x,y = zCurve(0.5,1e-3)
-#num, x,y = straightLine(2)
-#x,y = curveScaleByLength(x,y,3.0, True)
-nPoints, xArray, yArray = curveRefine(num,x,y, cl,False, True)
+    #nPoints, xArray, yArray = curveRefine(num,x,y, cl,False, True)
 
-#nPoints, xArray, yArray = curveRefine(num,x,y, cl,False, True)
+    #nPoints, xArray, yArray = straightLine(100)
 
-#nPoints, xArray, yArray = straightLine(100)
+    capsule_x = -0.05
+    capsule_y = -2.0
+    cable_n =100
+    cable_k=4
+    cable_r=5.0e-3
+    layer_n=4
+    layer_t=0.01
 
-capsule_x = -0.03
-capsule_y = y[0] - np.sqrt(2.0**2 - (x[0] - capsule_x)**2)
-cable_n =100
-cable_k=4
-cable_r=5.0e-3
-layer_n=4
-layer_t=0.01
+    parachute_mesh = Parachute(nPoints, xArray, yArray, cable_n, cable_k, cable_r, layer_n, layer_t, 'AFL', capsule_x, capsule_y)
 
-parachute_mesh = Parachute(nPoints, xArray, yArray, cable_n, cable_k, cable_r, layer_n, layer_t, 'thinSqaure', capsule_x, capsule_y)
+    parachute_mesh._file_write_structure_top()
 
-parachute_mesh._file_write_structure_top()
+    Canopy_Matlaw = 'HyperElasticPlaneStress'
+    #Canopy_Matlaw = 'PlaneStressViscoNeoHookean'
+    parachute_mesh._file_write_aeros_mesh_include(Canopy_Matlaw)
 
-Canopy_Matlaw = 'HyperElasticPlaneStress'
-#Canopy_Matlaw = 'PlaneStressViscoNeoHookean'
-parachute_mesh._file_write_aeros_mesh_include(Canopy_Matlaw)
+    parachute_mesh._file_write_common_data_include()
 
-parachute_mesh._file_write_common_data_include()
+    parachute_mesh._file_write_embedded_surface_top()
 
-parachute_mesh._file_write_embedded_surface_top()
+    parachute_mesh._file_write_surface_top()
 
-parachute_mesh._file_write_surface_top()
+
+if __name__ == '__main__':
+    Origin()

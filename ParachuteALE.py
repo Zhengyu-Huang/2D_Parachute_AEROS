@@ -469,6 +469,8 @@ class Parachute:
 
 
         self.embeddedsurface_mask = np.ones(node_n,dtype=int)
+        self.embeddedsurface_mask[self.cable1_node[0]] = -1
+        self.embeddedsurface_mask[self.cable2_node[0]] = -1
         for i in range(2, self.cable_n - 2):
             self.embeddedsurface_mask[self.cable1_node[i*(cable_k + 1) - cable_k]] = -1
             self.embeddedsurface_mask[self.cable2_node[i*(cable_k + 1) - cable_k]] = -1
@@ -890,7 +892,7 @@ nPoints, xArray, yArray = curveRefine(num,x,y, cl,False, True)
 
 capsule_x = -0.03
 capsule_y = -2.0#y[0] - np.sqrt(2.0**2 - (x[0] - capsule_x)**2)
-cable_n =100
+cable_n = 100
 cable_k=4
 cable_r=5.0e-3
 layer_n=4
