@@ -353,7 +353,7 @@ class Parachute:
 
 
 
-    def __init__(self,canopy_n, canopy_x, canopy_y, cable_n, cable_k, cable_r, layer_n,layer_t, capsule_x, capsule_y = -0.5):
+    def __init__(self,canopy_n, canopy_x, canopy_y, cable_n, cable_k, cable_r, cable_skip, layer_n,layer_t, capsule_x, capsule_y = -0.5):
         '''
 
         :param canopy_n: (1D) canopy node number in x direction
@@ -362,6 +362,7 @@ class Parachute:
         :param cable_n: node number on suspension line
         :param cable_k: node number on a cross-section of dressing surface, node number on dressing surface is cable_n*cable_k + 2(bottom and top)
         :param cable_r: cable radius
+        :param cable_skip: [b_n, e_n] skip the dressing of first b_n beams near capsule and last e_n beams near the canopy
         :param layer_n: number of layers extruded in z direction, node number in z direction is layer_n+1
         :param capsule_y: capsule is at (x = 0, y = capsule_y, z = layer_n /2 * d)
 
@@ -384,6 +385,7 @@ class Parachute:
         self.cable_k = cable_k
         self.layer_n = layer_n
         self.cable_r = cable_r
+        self.cable_skip = cable_skip
         self.capsule_y = capsule_y
 
         self.canopy_node = np.array(range((layer_n+1)* canopy_n),dtype=int)
@@ -469,11 +471,26 @@ class Parachute:
 
 
         self.embeddedsurface_mask = np.ones(node_n,dtype=int)
+        b_n,e_n = cable_skip
+        #skip b_n element near the canopy e_n elements at the near the capsule
         self.embeddedsurface_mask[self.cable1_node[0]] = -1
         self.embeddedsurface_mask[self.cable2_node[0]] = -1
-        for i in range(2, self.cable_n - 2):
+        for i in range(1,b_n):
+            for k in range(self.cable_k + 1):
+                self.embeddedsurface_mask[self.cable1_node[i * (cable_k + 1) - cable_k + k]] = -1
+                self.embeddedsurface_mask[self.cable2_node[i * (cable_k + 1) - cable_k + k]] = -1
+
+
+
+
+        for i in range(b_n + 1, self.cable_n - e_n - 1):
             self.embeddedsurface_mask[self.cable1_node[i*(cable_k + 1) - cable_k]] = -1
             self.embeddedsurface_mask[self.cable2_node[i*(cable_k + 1) - cable_k]] = -1
+
+        for i in range(self.cable_n - e_n, self.cable_n - 1):
+            for k in range(self.cable_k + 1):
+                self.embeddedsurface_mask[self.cable1_node[i * (cable_k + 1) - cable_k + k]] = -1
+                self.embeddedsurface_mask[self.cable2_node[i * (cable_k + 1) - cable_k + k]] = -1
 
         id = 0
         for i in range(node_n):
@@ -558,7 +575,7 @@ class Parachute:
         return id
 
     @staticmethod
-    def _write_cable_surface_helper(file, topo, k, n, cable_node, start_id,mask = None):
+    def _write_cable_surface_helper(file, topo, k, n, cable_node, cable_skip, start_id,mask = None):
         '''
         :param file: output file name
         :param topo: material topology
@@ -572,9 +589,10 @@ class Parachute:
         if mask is None:
             mask = np.arange(self.node_n)
 
+        b_n, e_n = cable_skip
         id = start_id
         temp = range(1,k+1)
-        for i in range(n-3):
+        for i in range(b_n-1, n-e_n-2):
             for j in range(k):
                 file.write('%d   %d  %d  %d  %d\n' %(id, topo,  mask[cable_node[i*(k+1)+temp[j-1] + 1]]+1, mask[cable_node[i*(k+1)+temp[j] + 1]]+1,
                                                      mask[cable_node[(i+1)*(k+1)+temp[j-1] + 1]]+1))
@@ -586,14 +604,14 @@ class Parachute:
 
         #phantom triangle at bottom
         temp = range(1,k+1)
-        i = 1
+        i = 1 + (b_n -1)*(k+1)
         for j in range(k):
             file.write('%d   %d  %d  %d  %d\n' %(id, topo,  mask[cable_node[i]]+1, mask[cable_node[i + temp[j]]] + 1, mask[cable_node[i+temp[j-1]]]+1))
             id +=1
 
 
         #phantom triangle at top
-        i = (n-3)*(k+1) + 1
+        i = (n-3)*(k+1) + 1 - (e_n -1)*(k+1)
         for j in range(k):
             file.write('%d   %d  %d  %d  %d\n' %(id, topo,  mask[cable_node[i]]+1, mask[cable_node[i + temp[j-1]]]+1, mask[cable_node[i+temp[j]]]+1))
             id +=1
@@ -604,8 +622,8 @@ class Parachute:
         if mask is None:
             mask = np.arange(self.node_n)
 
-        id = Parachute._write_cable_surface_helper(file, topo, self.cable_k, self.cable_n, self.cable1_node, start_id,mask)
-        id = Parachute._write_cable_surface_helper(file, topo, self.cable_k, self.cable_n, self.cable2_node, id,mask)
+        id = Parachute._write_cable_surface_helper(file, topo, self.cable_k, self.cable_n,  self.cable1_node, self.cable_skip, start_id,mask)
+        id = Parachute._write_cable_surface_helper(file, topo, self.cable_k, self.cable_n,  self.cable2_node, self.cable_skip, id,mask)
         return id
 
     def _write_canopy_surface(self,file,topo,start_id, special = True):
@@ -897,8 +915,8 @@ cable_k=4
 cable_r=5.0e-3
 layer_n=4
 layer_t=0.01
-
-parachute_mesh = Parachute(nPoints, xArray, yArray, cable_n, cable_k, cable_r, layer_n, layer_t, capsule_x, capsule_y)
+cable_skip = [2,2]
+parachute_mesh = Parachute(nPoints, xArray, yArray, cable_n, cable_k, cable_r, cable_skip, layer_n, layer_t, capsule_x, capsule_y)
 
 parachute_mesh._file_write_structure_top()
 
