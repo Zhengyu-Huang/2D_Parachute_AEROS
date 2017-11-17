@@ -73,8 +73,8 @@ def hatShape():
     return nPoints, xArray, yArray
 
 def candle():
-    xx = np.array([-0.5, -0.07, -0.05, -0.45, -0.5, -0.05, -0.04, -0.5, -0.48, -0.38, -0.375, -0.25, -0.245, -0.13, -0.125, -0.05, -0.045, 0.045, 0.05, 0.125, 0.13, 0.245, 0.25,
-          0.375, 0.38, 0.48, 0.5, 0.04, 0.05, 0.5, 0.45, 0.05, 0.07, 0.5]);
+    xx = np.array([-0.5, -0.2, -0.2, -0.45, -0.5, -0.2, -0.2, -0.5, -0.48, -0.38, -0.375, -0.25, -0.245, -0.13, -0.125, -0.05, -0.045, 0.045, 0.05, 0.125, 0.13, 0.245, 0.25,
+          0.375, 0.38, 0.48, 0.5, 0.2, 0.2, 0.5, 0.45, 0.2, 0.2, 0.5]);
     yy = np.array([0, 0, 0.125, 0.125, 0.25, 0.25, 0.375, 0.375, 1, 1, 0.5, 0.5, 1, 1, 0.5, 0.5, 1, 1, 0.5, 0.5, 1, 1, 0.5, 0.5, 1, 1, 0.375, 0.375, 0.25, 0.25, 0.125, 0.125, 0, 0]);
 
     num = len(xx)
@@ -799,7 +799,7 @@ class Parachute:
 
         # Material specifies material
         # material id, ....
-        youngsModulus = 1.0e9
+        youngsModulus = 944836855
         poissonRatio = 0.4
         density = 1153.4
         thickness = self.thickness
@@ -901,7 +901,7 @@ num,x,y = sFolding(2,1.0,1.0)
 #num,x,y = candle( )
 #num,x,y = zCurve(0.5,1e-3)
 #num, x,y = straightLine(2)
-x,y = curveScaleByLength(x,y,2.0, True)
+x,y = curveScaleByLength(x,y,1.6, True)
 nPoints, xArray, yArray = curveRefine(num,x,y, cl,False, True)
 
 #nPoints, xArray, yArray = curveRefine(num,x,y, cl,False, True)
@@ -912,7 +912,7 @@ capsule_x = -0.02
 capsule_y = -2.0#y[0] - np.sqrt(2.0**2 - (x[0] - capsule_x)**2)
 cable_n = 100
 cable_k=4
-cable_r=5.0e-3
+cable_r=0.0016
 layer_n=4
 layer_t=0.01
 cable_skip = [1,1]
