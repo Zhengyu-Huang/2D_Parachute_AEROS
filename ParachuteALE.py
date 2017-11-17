@@ -197,7 +197,7 @@ def AFL(xa, ya, xb, yb,k = 10, plotOrNot=True):
     scale = (xb-xa)/(2*x1)
     x,y = x_p*scale, y_p *scale
     x , y = x + xa - x[0], y + ya - y[0]
-    print('smallest y coord is %f',np.amin(y))
+    print('smallest y coord is %.15f',np.amin(y))
     if (plotOrNot):
         plt.fill(x, y,edgecolor='r', fill=False)
         plt.show()
@@ -269,6 +269,23 @@ def curveRefine(num, xx, yy,cl, closeOrNot, plotOrNot):
         plt.xlim([-1,1])
         plt.show()
     return nPoints, xArray, yArray
+
+
+def referenceCurve(nPoints, xx, yy, capsule_x, capsule_y):
+    if(abs(xx[0]+xx[-1]) > 1.0e-6 or abs(yy[0]) + abs(yy[-1]) > 1.0e-6 ):
+        print('ERROR in referenceCurve: The folding is not symmetric')
+    xx0, yy0 = np.zeros(nPoints), np.zeros(nPoints)
+    c_len = np.sum(np.sqrt((xx[1:] - xx[0:-1])**2 + (yy[1:] - yy[0:-1])**2))
+    s_len = np.sqrt((xx[0] - capsule_x)**2 + (yy[0] - capsule_y)**2)
+    print('canopy length is ',c_len, 'suspension line length is ', s_len)
+
+    xx0[0] = - c_len/2.0
+    yy0[:] = np.sqrt(s_len**2 - (c_len/2.0 - abs(capsule_x))**2) + capsule_y
+
+    for i in range(1,nPoints):
+        xx0[i] = xx0[i-1] + np.sqrt((xx[i]-xx[i-1])**2 + (yy[i]-yy[i-1])**2)
+    return xx0, yy0
+
 
 ###########################################################################################################################
 ###########################################################################################################################
@@ -353,12 +370,15 @@ class Parachute:
 
 
 
-    def __init__(self,canopy_n, canopy_x, canopy_y, cable_n, cable_k, cable_r, cable_skip, layer_n,layer_t, capsule_x, capsule_y = -0.5):
+    def __init__(self,canopy_n, canopy_x, canopy_y, canopy_x0, canopy_y0, cable_n, cable_k, cable_r,
+                 cable_skip, layer_n,layer_t, capsule_x, capsule_y = -0.5):
         '''
 
         :param canopy_n: (1D) canopy node number in x direction
-        :param canopy_x: x coordinate of canopy nodes
-        :param canopy_y: y coordinate of canopy nodes
+        :param canopy_x0: x coordinate of canopy nodes, reference position
+        :param canopy_y0: y coordinate of canopy nodes, reference position
+        :param canopy_x: x coordinate of canopy nodes, intial folding
+        :param canopy_y: y coordinate of canopy nodes, intial folding
         :param cable_n: node number on suspension line
         :param cable_k: node number on a cross-section of dressing surface, node number on dressing surface is cable_n*cable_k + 2(bottom and top)
         :param cable_r: cable radius
@@ -386,6 +406,7 @@ class Parachute:
         self.layer_n = layer_n
         self.cable_r = cable_r
         self.cable_skip = cable_skip
+        self.capsule_x = capsule_x
         self.capsule_y = capsule_y
 
         self.canopy_node = np.array(range((layer_n+1)* canopy_n),dtype=int)
@@ -420,7 +441,7 @@ class Parachute:
         self.coord = np.empty(shape=[node_n,3],dtype=float)
         for i in range(canopy_n):
            for j in range(layer_n + 1):
-               self.coord[self.canopy_node[i*(layer_n+1) + j],:] = [canopy_x[i],canopy_y[i],layer_t*j]
+               self.coord[self.canopy_node[i*(layer_n+1) + j],:] = [canopy_x0[i],canopy_y0[i],layer_t*j]
 
         self.beam1_start_coord = np.array([capsule_xl, capsule_yl, layer_n//2*layer_t], dtype=float) #This is the capsule_con_l node
         self.beam1_end_coord = self.coord[layer_n//2,:]
@@ -499,11 +520,43 @@ class Parachute:
                 id += 1
 
 
+        self.init_disp = self._init_disp(canopy_x, canopy_y, canopy_x0, canopy_y0)
 
 
 
+    def _init_disp(self, canopy_x, canopy_y, canopy_x0, canopy_y0):
 
+        canopy_n = self.canopy_n
+        cable_n = self.cable_n
+        layer_n = self.layer_n
+        capsule_x = self.capsule_x
+        capsule_y = self.capsule_y
 
+        init_disp = np.zeros((canopy_n*(layer_n + 1) + 2*(cable_n-1),3))
+        #canopy node
+        for i in range(canopy_n):
+            for j in range(layer_n+1):
+                init_disp[i * (layer_n + 1) + j, 0] = canopy_x[i] - canopy_x0[i]
+                init_disp[i * (layer_n + 1) + j, 1] = canopy_y[i] - canopy_y0[i]
+                init_disp[i * (layer_n + 1) + j, 2] = 0.0
+
+        #suspension line left  bottom to top
+        line_x,  line_y  = np.linspace(capsule_x,canopy_x[0],num=cable_n),  np.linspace(capsule_y,canopy_y[0], num=cable_n)
+        line_x0, line_y0 = np.linspace(capsule_x,canopy_x0[0],num=cable_n), np.linspace(capsule_y,canopy_y0[0],num=cable_n)
+        for j in range(cable_n -1):
+            init_disp[canopy_n * (layer_n + 1) + j, 0] = line_x[j] - line_x0[j]
+            init_disp[canopy_n * (layer_n + 1) + j, 1] = line_y[j] - line_y0[j]
+            init_disp[canopy_n * (layer_n + 1) + j, 2] = 0.0
+
+        #suspension line right bottom to top
+        line_x,  line_y  = np.linspace(-capsule_x, canopy_x[-1], num=cable_n),  np.linspace(capsule_y, canopy_y[-1],  num=cable_n)
+        line_x0, line_y0 = np.linspace(-capsule_x, canopy_x0[-1], num=cable_n), np.linspace(capsule_y, canopy_y0[-1], num=cable_n)
+        for j in range(cable_n -1):
+            init_disp[canopy_n * (layer_n + 1) + cable_n - 1 + j, 0] = line_x[j] - line_x0[j]
+            init_disp[canopy_n * (layer_n + 1) + cable_n - 1 + j, 1] = line_y[j] - line_y0[j]
+            init_disp[canopy_n * (layer_n + 1) + cable_n - 1 + j, 2] = 0.0
+
+        return init_disp
 
     def _write_coord(self,file,mask=None):
         '''
@@ -711,7 +764,7 @@ class Parachute:
 
         file = open('surface.top','w')
         id = 1
-        file.write('SURFACETOPO 1 SURFACE_THICKNESS %f\n' %(self.thickness))
+        file.write('SURFACETOPO 1 SURFACE_THICKNESS %.15f\n' %(self.thickness))
         topo = 3;
         id = self._write_canopy_surface(file,topo,id)
         file.write('*\n')
@@ -757,10 +810,10 @@ class Parachute:
         self._write_coord(file,self.structure_mask)
 
         # TopologyId, finite element type, node1Id, node2Id, node3Id ..
-        # (some element type has more nodes, but 129 is 3 nodes membrane element)
+        # (some element type has more nodes, but 129 is 3 nodes membrane element, 15 is 3 nodes shell element)
         # First part for the canopy
         id = 1
-        topo = 129;
+        topo = 129;#todo 129 is membrane
         file.write('TOPOLOGY\n')
         id = self._write_canopy_surface(file,topo,id)
 
@@ -805,10 +858,10 @@ class Parachute:
         thickness = self.thickness
         file.write('MATERIAL\n')
         canopy_attr = 1;
-        file.write('%d 0 %f %f %f 0 0 %f 0 0 0 0 0 0 0\n' %(canopy_attr, youngsModulus, poissonRatio, density, thickness))
+        file.write('%d 0 %.15f %.15f %.15f 0 0 %.15f 0 0 0 0 0 0 0\n' %(canopy_attr, youngsModulus, poissonRatio, density, thickness))
 
         capsule_attr = 4;
-        file.write('%d 0 %f %f %f 0 0 %f 0 0 0 0 0 0 0\n' %(capsule_attr, youngsModulus, poissonRatio, density, thickness))
+        file.write('%d 0 %.15f %.15f %.15f 0 0 %.15f 0 0 0 0 0 0 0\n' %(capsule_attr, youngsModulus, poissonRatio, density, thickness))
 
 
         cable_beam_attr = 2;
@@ -835,7 +888,7 @@ class Parachute:
         Sy = np.cross(Sx,e1)
         Sz = np.cross(Sx,Sy)
         for id in range(2*self.layer_n*(self.canopy_n - 1) + 1, 2*self.layer_n*(self.canopy_n - 1) + self.cable_n):
-            file.write('%d  %f %f %f    %f %f %f    %f %f %f\n' %(id,  Sx[0],Sx[1],Sx[2],  Sy[0],Sy[1],Sy[2],  Sz[0],Sz[1],Sz[2]))
+            file.write('%d  %.15f %.15f %.15f    %.15f %.15f %.15f    %.15f %.15f %.15f\n' %(id,  Sx[0],Sx[1],Sx[2],  Sy[0],Sy[1],Sy[2],  Sz[0],Sz[1],Sz[2]))
 
         B = self.beam2_end_coord
         A = self.beam2_start_coord
@@ -844,7 +897,7 @@ class Parachute:
         Sy = np.cross(Sx,e1)
         Sz = np.cross(Sx,Sy)
         for id in range(2*self.layer_n*(self.canopy_n - 1) + self.cable_n, 2*self.layer_n*(self.canopy_n - 1) + 2*self.cable_n - 1):
-            file.write('%d  %f %f %f    %f %f %f    %f %f %f\n' %(id,  Sx[0],Sx[1],Sx[2],  Sy[0],Sy[1],Sy[2],  Sz[0],Sz[1],Sz[2]))
+            file.write('%d  %.15f %.15f %.15f    %.15f %.15f %.15f    %.15f %.15f %.15f\n' %(id,  Sx[0],Sx[1],Sx[2],  Sy[0],Sy[1],Sy[2],  Sz[0],Sz[1],Sz[2]))
         file.write('*\n')
 
 
@@ -860,22 +913,33 @@ class Parachute:
         # material id, material name, ...
         file.write('MATLAW\n')
         if(Canopy_Matlaw == 'HyperElasticPlaneStress'):
-            file.write('1 HyperElasticPlaneStress %f %f %f %f\n' %(density, youngsModulus, poissonRatio, thickness))
+            file.write('1 HyperElasticPlaneStress %.15f %.15f %.15f %.15f\n' %(density, youngsModulus, poissonRatio, thickness))
         elif(Canopy_Matlaw == 'PlaneStressViscoNeoHookean'):
-            file.write('1 PlaneStressViscoNeoHookean %f %f %f 0.4 10 0.3 50 0.2 100 %f\n' % (density, youngsModulus, poissonRatio, thickness))
+            file.write('1 PlaneStressViscoNeoHookean %.15f %.15f %.15f 0.4 10 0.3 50 0.2 100 %.15f\n' % (density, youngsModulus, poissonRatio, thickness))
 
         file.write('*\n')
 
 
         # Pressure
         # file.write('PRESSURE\n')
-        # file.write('1 %d %f\n' %(2*self.layer_n*(self.canopy_n - 1), -4000.0))
+        # file.write('1 %d %.15f\n' %(2*self.layer_n*(self.canopy_n - 1), -4000.0))
         # file.write('*\n')
 
         # Gravity
         #file.write('GRAVITY\n')
-        #file.write('%f %f %f\n' %(0.0, -10000, 0.0))
+        #file.write('%.15f %.15f %.15f\n' %(0.0, -10000, 0.0))
         #file.write('*\n')
+
+
+        #WRITE INITIAL DISPLACEMENT
+        file.write('IDISPLACEMENTS\n')
+        init_disp = self.init_disp
+        n_disp = len(init_disp)
+        for i in range(n_disp):
+            for j in range(3):
+                file.write('%d %d %.15f\n' %(i+1, j+1, init_disp[i,j]))
+        file.write('*\n')
+
 
         #Fix the bottom 2 points
         file.write('DISP\n')
@@ -916,7 +980,10 @@ cable_r=0.0016
 layer_n=4
 layer_t=0.01
 cable_skip = [1,1]
-parachute_mesh = Parachute(nPoints, xArray, yArray, cable_n, cable_k, cable_r, cable_skip, layer_n, layer_t, capsule_x, capsule_y)
+
+x0Array, y0Array = referenceCurve(nPoints, xArray, yArray, capsule_x, capsule_y)
+
+parachute_mesh = Parachute(nPoints, xArray, yArray,x0Array, y0Array, cable_n, cable_k, cable_r, cable_skip, layer_n, layer_t, capsule_x, capsule_y)
 
 parachute_mesh._file_write_structure_top()
 
