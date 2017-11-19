@@ -87,7 +87,11 @@ def zCurve(scaleX,scaleY):
 
     return 6, x*scaleX, y*scaleY
 
+def nCurve(scaleX,scaleY):
+    x = np.array([-0.5, -0.5, 0.5, 0.5])
+    y = np.array([0.0,     1,   1, 0.0])
 
+    return 4, x*scaleX, y*scaleY
 
 def hilbertCurveRecursive(n):
     ''' Generate Hilbert curve . 'n' must be a power of two. '''
@@ -532,13 +536,30 @@ class Parachute:
         capsule_x = self.capsule_x
         capsule_y = self.capsule_y
 
-        init_disp = np.zeros((canopy_n*(layer_n + 1) + 2*(cable_n-1),3))
+        init_disp = np.zeros((canopy_n*(layer_n + 1) + 2*(cable_n-1),6))
         #canopy node
         for i in range(canopy_n):
             for j in range(layer_n+1):
                 init_disp[i * (layer_n + 1) + j, 0] = canopy_x[i] - canopy_x0[i]
                 init_disp[i * (layer_n + 1) + j, 1] = canopy_y[i] - canopy_y0[i]
                 init_disp[i * (layer_n + 1) + j, 2] = 0.0
+                #rotation freedom
+                init_disp[i * (layer_n + 1) + j, 3] = 0.0
+                init_disp[i * (layer_n + 1) + j, 4] = 0.0
+
+                #use the knowledge the reference state is flat, parallel to z=0 plane
+                angle = 0.0
+                if i == 0:
+                    angle = 0.0  if j == 2 else np.arctan2(canopy_y[i+1] - canopy_y[i],  canopy_x[i+1] - canopy_x[i]) #j==2 the connection node
+                elif i == canopy_n-1:
+                    angle =  0.0 if j == 2 else np.arctan2(canopy_y[i] - canopy_y[i-1],  canopy_x[i] - canopy_x[i-1]) #j=2 the connection node
+                else:
+                    #angle = -(np.arctan2(canopy_y[i+1] - canopy_y[i],  canopy_x[i+1] - canopy_x[i]) - np.arctan2(canopy_y[i] - canopy_y[i-1],  canopy_x[i] - canopy_x[i-1]))/2.0
+                    angle = (np.arctan2(canopy_y[i + 1] - canopy_y[i], canopy_x[i + 1] - canopy_x[i]) + np.arctan2(
+                        canopy_y[i] - canopy_y[i - 1], canopy_x[i] - canopy_x[i - 1])) / 2.0
+                init_disp[i * (layer_n + 1) + j, 5] = angle
+
+
 
         #suspension line left  bottom to top
         line_x,  line_y  = np.linspace(capsule_x,canopy_x[0],num=cable_n),  np.linspace(capsule_y,canopy_y[0], num=cable_n)
@@ -813,7 +834,7 @@ class Parachute:
         # (some element type has more nodes, but 129 is 3 nodes membrane element, 15 is 3 nodes shell element)
         # First part for the canopy
         id = 1
-        topo = 129;#todo 129 is membrane
+        topo = 15;#todo 129 is membrane
         file.write('TOPOLOGY\n')
         id = self._write_canopy_surface(file,topo,id)
 
@@ -904,9 +925,9 @@ class Parachute:
 
         # MATUSAGE specifies material
         # start element number, end element number, material id
+        '''
         file.write('MATUSAGE\n')
         file.write('1 %d  1\n' %(2*self.layer_n*(self.canopy_n - 1)))
-        #aerosMeshInclude.write('%d %d 2\n' %(8*nPoints - 7,8*nPoints + 4*mPoints - 8))
         file.write('*\n')
 
         # MATLAW can specify nonlinear property of the material
@@ -918,7 +939,7 @@ class Parachute:
             file.write('1 PlaneStressViscoNeoHookean %.15f %.15f %.15f 0.4 10 0.3 50 0.2 100 %.15f\n' % (density, youngsModulus, poissonRatio, thickness))
 
         file.write('*\n')
-
+        '''
 
         # Pressure
         # file.write('PRESSURE\n')
@@ -932,12 +953,11 @@ class Parachute:
 
 
         #WRITE INITIAL DISPLACEMENT
-        file.write('IDISPLACEMENTS\n')
+        file.write('IDISP6 \n')
         init_disp = self.init_disp
         n_disp = len(init_disp)
         for i in range(n_disp):
-            for j in range(3):
-                file.write('%d %d %.15f\n' %(i+1, j+1, init_disp[i,j]))
+                file.write('%d %.15f %.15f %.15f %.15f %.15f %.15f\n' %(i+1, init_disp[i,0], init_disp[i,1], init_disp[i,2], init_disp[i,3], init_disp[i,4], init_disp[i,5]))
         file.write('*\n')
 
 
@@ -961,10 +981,11 @@ class Parachute:
 
 cl = 0.01
 #num,x,y = hilbertCurve(2,1,1)
-num,x,y = sFolding(2,1.0,1.0)
+#num,x,y = sFolding(2,1.0,1.0)
 #num,x,y = candle( )
 #num,x,y = zCurve(0.5,1e-3)
 #num, x,y = straightLine(2)
+num,x,y = nCurve(1.0,1.0)
 x,y = curveScaleByLength(x,y,1.6, True)
 nPoints, xArray, yArray = curveRefine(num,x,y, cl,False, True)
 
