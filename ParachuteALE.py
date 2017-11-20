@@ -951,6 +951,7 @@ num,x,y = sFolding(2,1.0,1.0)
 #num,x,y = zCurve(0.5,1e-3)
 #num, x,y = straightLine(2)
 #num,x,y = nCurve(1.0,1.0)
+
 x,y = curveScaleByLength(x,y,1.6, True)
 nPoints, xArray, yArray = curveRefine(num,x,y, cl,False, True)
 nPoints,xArray, yArray  = roundCorner(nPoints, xArray, yArray, k=5, plotOrNot=True)
