@@ -177,6 +177,12 @@ def sFolding(k,scaleX,scaleY):
     return num-4*k+2, x*scaleX, y*scaleY
 
 
+def nCurve(scaleX,scaleY):
+    x = np.array([-0.5, -0.5, 0.5, 0.5])
+    y = np.array([0.0,     1,   1, 0.0])
+
+    return 4, x*scaleX, y*scaleY
+
 
 
 def AFL(xa, ya, xb, yb,k = 10, plotOrNot=True):
@@ -270,6 +276,48 @@ def curveRefine(num, xx, yy,cl, closeOrNot, plotOrNot):
         plt.show()
     return nPoints, xArray, yArray
 
+
+def roundCorner(num, xx, yy, k, plotOrNot):
+    new_xx, new_yy = [], []
+    new_num = 0
+
+    for i in range(num):
+        angle = 0.0;
+        if(i > 0 and i < num -1):
+            angle = (np.arctan2(yy[i + 1] - yy[i], xx[i + 1] - xx[i]) - np.arctan2(
+                yy[i] - yy[i - 1], xx[i] - xx[i - 1]))
+        if abs(angle) > np.pi/10.0: #there is a corner, we need to round it
+            (xj,yj) = (xx[i-1],yy[i-1]) if((xx[i-1] - xx[i])**2 + (yy[i-1] - yy[i])**2 > (xx[i+1] - xx[i])**2 + (yy[i+1] - yy[i])**2 ) else (xx[i+1], yy[i+1])
+            A = np.array([[xx[i+1] - xx[i-1],yy[i+1] - yy[i-1]],[xj - xx[i],yj - yy[i]]])
+            b = np.array([(xx[i+1] - xx[i-1])*(xx[i+1] + xx[i-1])/2.0 + (yy[i+1] - yy[i-1])*(yy[i+1] + yy[i-1])/2.0, (xj - xx[i])*xj + (yj - yy[i])*yj])
+            oo = np.linalg.solve(A,b)
+            ox,oy = oo[0], oo[1]
+
+            rx,ry = xx[i-1] - ox, yy[i-1] - oy
+            theta  = np.arctan2(((xx[i + 1] - ox)*(-ry)+ (yy[i + 1] - oy)*rx), ((xx[i + 1] - ox)*rx + (yy[i + 1] - oy)*ry))
+
+            d_theta = theta / (k-1)
+            for j in range(1,k-1):
+                new_num += 1
+                new_xx.append(ox + np.cos(j*d_theta) *rx - np.sin(j*d_theta)*ry)
+                new_yy.append(oy + np.sin(j*d_theta) *rx + np.cos(j*d_theta)*ry)
+
+
+
+        else:
+            new_num +=1
+            new_xx.append(xx[i])
+            new_yy.append(yy[i])
+
+
+
+
+    if(plotOrNot):
+        plt.plot(new_xx, new_yy,'-*')
+        plt.ylim([-0.5,1.5])
+        plt.xlim([-1,1])
+        plt.show()
+    return nPoints, xArray, yArray
 ###########################################################################################################################
 ###########################################################################################################################
 #Start to generate AEROS and Mathcer input file
@@ -760,7 +808,7 @@ class Parachute:
         # (some element type has more nodes, but 129 is 3 nodes membrane element)
         # First part for the canopy
         id = 1
-        topo = 129;
+        topo = 15; #This is shell element
         file.write('TOPOLOGY\n')
         id = self._write_canopy_surface(file,topo,id)
 
@@ -850,6 +898,7 @@ class Parachute:
 
 
         # MATUSAGE specifies material
+        '''
         # start element number, end element number, material id
         file.write('MATUSAGE\n')
         file.write('1 %d  1\n' %(2*self.layer_n*(self.canopy_n - 1)))
@@ -865,7 +914,7 @@ class Parachute:
             file.write('1 PlaneStressViscoNeoHookean %f %f %f 0.4 10 0.3 50 0.2 100 %f\n' % (density, youngsModulus, poissonRatio, thickness))
 
         file.write('*\n')
-
+        '''
 
         # Pressure
         # file.write('PRESSURE\n')
@@ -887,7 +936,7 @@ class Parachute:
 
 
         file.write('* symmetry planes\n')
-        for freedom in range(3,7):
+        for freedom in range(3,6):
             file.write('%d thru %d step %d %d 0.0\n' %(1, (self.layer_n + 1)*self.canopy_n - self.layer_n, self.layer_n + 1,  freedom))
             file.write('%d thru %d step %d %d 0.0\n' %(1 + self.layer_n, (self.layer_n + 1)*self.canopy_n, self.layer_n + 1,  freedom))
 
@@ -901,10 +950,11 @@ num,x,y = sFolding(2,1.0,1.0)
 #num,x,y = candle( )
 #num,x,y = zCurve(0.5,1e-3)
 #num, x,y = straightLine(2)
+#num,x,y = nCurve(1.0,1.0)
 x,y = curveScaleByLength(x,y,1.6, True)
 nPoints, xArray, yArray = curveRefine(num,x,y, cl,False, True)
+nPoints,xArray, yArray  = roundCorner(nPoints, xArray, yArray, k=5, plotOrNot=True)
 
-#nPoints, xArray, yArray = curveRefine(num,x,y, cl,False, True)
 
 #nPoints, xArray, yArray = straightLine(100)
 
