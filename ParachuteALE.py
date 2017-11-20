@@ -1014,7 +1014,7 @@ class Parachute:
 
 
         file.write('* symmetry planes\n')
-        for freedom in range(3,7):
+        for freedom in range(3,6):
             file.write('%d thru %d step %d %d 0.0\n' %(1, (self.layer_n + 1)*self.canopy_n - self.layer_n, self.layer_n + 1,  freedom))
             file.write('%d thru %d step %d %d 0.0\n' %(1 + self.layer_n, (self.layer_n + 1)*self.canopy_n, self.layer_n + 1,  freedom))
 
