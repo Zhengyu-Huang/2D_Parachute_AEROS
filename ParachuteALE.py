@@ -440,7 +440,7 @@ class Parachute:
         ##################################################################################
 
         ##################################################################################
-        # Start the coordinate part
+        # Start the coordinate part for reference coordinates
         ##################################################################################
         self.coord = np.empty(shape=[node_n,3],dtype=float)
         for i in range(canopy_n):
@@ -466,6 +466,32 @@ class Parachute:
             for j in range(cable_k):
                 self.coord[self.cable2_node[(i - 1)*(cable_k+1)+j + 2],:] = coord[i*(cable_k+1) + j + 1,:]
 
+        ##################################################################################
+        # Start the coordinate part for initial folding coordinates
+        ##################################################################################
+        self.coord_folding = np.empty(shape=[node_n,3],dtype=float)
+        for i in range(canopy_n):
+           for j in range(layer_n + 1):
+               self.coord_folding[self.canopy_node[i*(layer_n+1) + j],:] = [canopy_x[i],canopy_y[i],layer_t*j]
+
+        self.beam1_start_coord = np.array([capsule_xl, capsule_yl, layer_n//2*layer_t], dtype=float) #This is the capsule_con_l node
+        self.beam1_end_coord = self.coord_folding[layer_n//2,:]
+        coord = Parachute._compute_phantom_coordinates(self.beam1_start_coord,  self.beam1_end_coord,  cable_n,   cable_k,   cable_r)
+        self.coord_folding[self.cable1_node[0],:] = self.beam1_start_coord
+        for i in range(1,cable_n-1):
+            self.coord_folding[self.cable1_node[(i-1)*(cable_k+1) + 1],:] = coord[i*(cable_k+1),:]
+            for j in range(cable_k):
+                self.coord_folding[self.cable1_node[(i-1)*(cable_k+1)+j + 2],:] = coord[i*(cable_k+1) + j + 1,:]
+
+        self.beam2_start_coord = np.array([capsule_xr, capsule_yr, layer_n/2*layer_t], dtype=float)   #This is the capsule_con_r node
+        self.beam2_end_coord = self.coord_folding[(layer_n + 1)*canopy_n - layer_n//2 - 1,:]
+
+        coord = Parachute._compute_phantom_coordinates(self.beam2_start_coord,self.beam2_end_coord,cable_n,cable_k,cable_r)
+        self.coord_folding[self.cable2_node[0],:] = self.beam2_start_coord
+        for i in range(1,cable_n-1):
+            self.coord_folding[self.cable2_node[(i - 1)*(cable_k+1) + 1],:] = coord[i*(cable_k+1),:]
+            for j in range(cable_k):
+                self.coord_folding[self.cable2_node[(i - 1)*(cable_k+1)+j + 2],:] = coord[i*(cable_k+1) + j + 1,:]
 
 
 
@@ -550,9 +576,11 @@ class Parachute:
                 #use the knowledge the reference state is flat, parallel to z=0 plane
                 angle = 0.0
                 if i == 0:
-                    angle = 0.0  if j == 2 else np.arctan2(canopy_y[i+1] - canopy_y[i],  canopy_x[i+1] - canopy_x[i]) #j==2 the connection node
+                    angle = 0.0 #if j == 2 else np.arctan2(canopy_y[i+1] - canopy_y[i],  canopy_x[i+1] - canopy_x[i]) #j==2 the connection node
+                    #angle =  np.arctan2(canopy_y[i+1] - canopy_y[i],  canopy_x[i+1] - canopy_x[i])
                 elif i == canopy_n-1:
-                    angle =  0.0 if j == 2 else np.arctan2(canopy_y[i] - canopy_y[i-1],  canopy_x[i] - canopy_x[i-1]) #j=2 the connection node
+                    angle = 0.0 #if j == 2 else np.arctan2(canopy_y[i] - canopy_y[i-1],  canopy_x[i] - canopy_x[i-1]) #j=2 the connection node
+                    #angle =  np.arctan2(canopy_y[i] - canopy_y[i-1],  canopy_x[i] - canopy_x[i-1]) #j=2 the connection node
                 else:
                     #angle = -(np.arctan2(canopy_y[i+1] - canopy_y[i],  canopy_x[i+1] - canopy_x[i]) - np.arctan2(canopy_y[i] - canopy_y[i-1],  canopy_x[i] - canopy_x[i-1]))/2.0
                     angle = (np.arctan2(canopy_y[i + 1] - canopy_y[i], canopy_x[i + 1] - canopy_x[i]) + np.arctan2(
@@ -579,7 +607,7 @@ class Parachute:
 
         return init_disp
 
-    def _write_coord(self,file,mask=None):
+    def _write_coord(self,file,mask=None, folding=False):
         '''
         Write the node coords on the real structure/embedded surface, not include phantom element nodes/beam-inside nodes
         To write embedded surface, mask  =  self.embeddedsurface_mask
@@ -590,7 +618,7 @@ class Parachute:
 
         if mask is None:
             mask = np.arange(self.node_n)
-        coord  = self.coord
+        coord  = self.coord_folding if folding else self.coord
 
         id = 1
         for i in  range(self.node_n):
@@ -764,7 +792,7 @@ class Parachute:
         file = open('structure.top','w')
         id = 1
         file.write('Nodes nodeset\n')
-        self._write_coord(file,self.structure_mask)
+        self._write_coord(file,self.structure_mask,folding=False)
 
 
         file.write('Elements canopy using nodeset\n')
@@ -799,10 +827,11 @@ class Parachute:
         file.close()
 
     def _file_write_embedded_surface_top(self):
+        #This is an embedded surface for reference state
         file = open('embeddedSurface.top','w')
 
         file.write('Nodes nodeset\n')
-        self._write_coord(file,self.embeddedsurface_mask)
+        self._write_coord(file,self.embeddedsurface_mask,folding=False)
         id = 1
         file.write('Elements StickMovingSurface_8 using nodeset\n')
         topo = 4;
@@ -813,7 +842,21 @@ class Parachute:
         id = self._write_cable_surface(file,topo,id,self.embeddedsurface_mask)
 
         file.close()
+        #This is an embedded surface for initial folding
+        file = open('embeddedSurfaceFolding.top','w')
 
+        file.write('Nodes nodeset\n')
+        self._write_coord(file,self.embeddedsurface_mask,folding=True)
+        id = 1
+        file.write('Elements StickMovingSurface_8 using nodeset\n')
+        topo = 4;
+        id = self._write_canopy_surface(file,topo,id)
+
+        file.write('Elements StickMovingSurface_9 using nodeset\n')
+        topo = 4
+        id = self._write_cable_surface(file,topo,id,self.embeddedsurface_mask)
+
+        file.close()
 
 
 
@@ -981,11 +1024,11 @@ class Parachute:
 
 cl = 0.01
 #num,x,y = hilbertCurve(2,1,1)
-#num,x,y = sFolding(2,1.0,1.0)
+num,x,y = sFolding(2,1.0,1.0)
 #num,x,y = candle( )
 #num,x,y = zCurve(0.5,1e-3)
 #num, x,y = straightLine(2)
-num,x,y = nCurve(1.0,1.0)
+#num,x,y = nCurve(1.0,1.0)
 x,y = curveScaleByLength(x,y,1.6, True)
 nPoints, xArray, yArray = curveRefine(num,x,y, cl,False, True)
 
