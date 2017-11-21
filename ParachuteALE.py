@@ -576,11 +576,11 @@ class Parachute:
                 #use the knowledge the reference state is flat, parallel to z=0 plane
                 angle = 0.0
                 if i == 0:
-                    angle = 0.0 #if j == 2 else np.arctan2(canopy_y[i+1] - canopy_y[i],  canopy_x[i+1] - canopy_x[i]) #j==2 the connection node
-                    #angle =  np.arctan2(canopy_y[i+1] - canopy_y[i],  canopy_x[i+1] - canopy_x[i])
+                    #angle = 0.0 #if j == 2 else np.arctan2(canopy_y[i+1] - canopy_y[i],  canopy_x[i+1] - canopy_x[i]) #j==2 the connection node
+                    angle =  np.arctan2(canopy_y[i+1] - canopy_y[i],  canopy_x[i+1] - canopy_x[i])
                 elif i == canopy_n-1:
-                    angle = 0.0 #if j == 2 else np.arctan2(canopy_y[i] - canopy_y[i-1],  canopy_x[i] - canopy_x[i-1]) #j=2 the connection node
-                    #angle =  np.arctan2(canopy_y[i] - canopy_y[i-1],  canopy_x[i] - canopy_x[i-1]) #j=2 the connection node
+                    #angle = 0.0 #if j == 2 else np.arctan2(canopy_y[i] - canopy_y[i-1],  canopy_x[i] - canopy_x[i-1]) #j=2 the connection node
+                    angle =  np.arctan2(canopy_y[i] - canopy_y[i-1],  canopy_x[i] - canopy_x[i-1]) #j=2 the connection node
                 else:
                     #angle = -(np.arctan2(canopy_y[i+1] - canopy_y[i],  canopy_x[i+1] - canopy_x[i]) - np.arctan2(canopy_y[i] - canopy_y[i-1],  canopy_x[i] - canopy_x[i-1]))/2.0
                     angle = (np.arctan2(canopy_y[i + 1] - canopy_y[i], canopy_x[i + 1] - canopy_x[i]) + np.arctan2(
@@ -592,18 +592,29 @@ class Parachute:
         #suspension line left  bottom to top
         line_x,  line_y  = np.linspace(capsule_x,canopy_x[0],num=cable_n),  np.linspace(capsule_y,canopy_y[0], num=cable_n)
         line_x0, line_y0 = np.linspace(capsule_x,canopy_x0[0],num=cable_n), np.linspace(capsule_y,canopy_y0[0],num=cable_n)
+        rx0,ry0 = canopy_x0[0] - capsule_x, canopy_y0[0] - capsule_y
+        rx, ry  = canopy_x[0] - capsule_x, canopy_y[0] - capsule_y
+        angle = np.arctan2(rx*(-ry0) + ry*rx0, rx0*rx + ry0*ry)
         for j in range(cable_n -1):
             init_disp[canopy_n * (layer_n + 1) + j, 0] = line_x[j] - line_x0[j]
             init_disp[canopy_n * (layer_n + 1) + j, 1] = line_y[j] - line_y0[j]
-            init_disp[canopy_n * (layer_n + 1) + j, 2] = 0.0
+            init_disp[canopy_n * (layer_n + 1) + j, 5] = angle
+        #connected node
+        init_disp[2, 5] = (init_disp[2, 5] + angle)/2.0
 
         #suspension line right bottom to top
         line_x,  line_y  = np.linspace(-capsule_x, canopy_x[-1], num=cable_n),  np.linspace(capsule_y, canopy_y[-1],  num=cable_n)
         line_x0, line_y0 = np.linspace(-capsule_x, canopy_x0[-1], num=cable_n), np.linspace(capsule_y, canopy_y0[-1], num=cable_n)
+        rx0, ry0 = canopy_x0[-1] - capsule_x, canopy_y0[-1] - capsule_y
+        rx, ry = canopy_x[-1] - capsule_x, canopy_y[-1] - capsule_y
+        angle = np.arctan2(rx * (-ry0) + ry * rx0, rx0 * rx + ry0 * ry)
         for j in range(cable_n -1):
             init_disp[canopy_n * (layer_n + 1) + cable_n - 1 + j, 0] = line_x[j] - line_x0[j]
             init_disp[canopy_n * (layer_n + 1) + cable_n - 1 + j, 1] = line_y[j] - line_y0[j]
-            init_disp[canopy_n * (layer_n + 1) + cable_n - 1 + j, 2] = 0.0
+            init_disp[canopy_n * (layer_n + 1) + cable_n - 1 + j, 5] = angle
+
+        # connected node
+        init_disp[(canopy_n-1)* (layer_n + 1) + 2, 5] = (init_disp[(canopy_n-1)* (layer_n + 1) + 2, 5] + angle) / 2.0
 
         return init_disp
 
@@ -1024,11 +1035,11 @@ class Parachute:
 
 cl = 0.01
 #num,x,y = hilbertCurve(2,1,1)
-num,x,y = sFolding(2,1.0,1.0)
+#num,x,y = sFolding(2,1.0,1.0)
 #num,x,y = candle( )
 #num,x,y = zCurve(0.5,1e-3)
 #num, x,y = straightLine(2)
-#num,x,y = nCurve(1.0,1.0)
+num,x,y = nCurve(1.0,1.0)
 x,y = curveScaleByLength(x,y,1.6, True)
 nPoints, xArray, yArray = curveRefine(num,x,y, cl,False, True)
 
