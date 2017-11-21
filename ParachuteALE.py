@@ -1,5 +1,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
+import scipy.special as scispe
+import copy as copy
 import math
 #This is a mesh generator for quasi-1D parachte
 #this is the one with matcher dressing techniques for the cables(suspension lines)
@@ -9,12 +11,32 @@ import math
 #int* xArray, x coordinates of these nodes
 #int* yArray, y coordinates of these nodes
 def sinCurve(plotOrNot):
-    nPoints = 800;
+    nPoints = 120;
 
-    A = 0.2;
-    k = 9
-    xArray = np.linspace(-0.5,0.5,num=nPoints)
-    yArray = A*np.sin((2*k)*np.pi*(xArray + 0.5)-0.5*np.pi)
+    #The length of the sine curve y = Asin(kx) x in [0,pi/(2k)]
+    #is E(-A^2k^2)/k E is the Complete elliptic integral of the second kind
+    #can be evaluated as scipy.special.ellipe(m)
+
+    A = 0.0971;
+    k = 4;
+    xr = 0.15
+    l = scispe.ellipe(-A**2*(k*np.pi/xr)**2)/(k*np.pi/xr)*(4*k)
+    print('sine curve length is', l)
+
+    xArray = np.linspace(-xr,xr,num=nPoints)
+    yArray = A*(np.sin(k*np.pi/xr*(xArray + xr) - np.pi/2.0) + 1.0)
+    dl = 0.0
+    max_ddl,min_ddl = 0.0,1.0
+    for i in range(len(xArray) - 1):
+        ddl = np.sqrt((xArray[i+1] - xArray[i])**2 + (yArray[i+1] - yArray[i])**2)
+        if ddl > max_ddl:
+            max_ddl = ddl
+        if ddl < min_ddl:
+            min_ddl = ddl
+        dl+= ddl
+    print('discrete sine curve length is', dl, 'max segment length is ', max_ddl,  'min segment length is ', min_ddl)
+
+
     if(plotOrNot):
         plt.plot(xArray, yArray,'-*')
         plt.ylim([-0.5,1.5])
@@ -71,6 +93,32 @@ def hatShape():
     yArray[11*k:12*k+1] = 0
 
     return nPoints, xArray, yArray
+
+
+def Sierpinski(n=2,plotOrNot=True):
+    if(n == 2):
+        a = 1/16.0
+        xx = np.array(
+            [-a, -2*a, -3*a, -5*a, -6*a, -7*a, -6*a, -6*a, -7*a, -6*a, -5*a, -3*a, -2*a,
+             -2*a, -3*a, -5*a, -6*a, -7*a, -6*a, -6*a, -7*a, -6*a, -5*a, -3*a, -2*a, -a, -2*a, -2*a, -a,
+             a, 2*a, 2*a, a, 2*a, 3*a, 5*a, 6*a, 7*a, 6*a, 6*a, 7*a, 6*a,5*a, 3*a,2*a,
+             2*a, 3*a, 5*a, 6*a, 7*a, 6*a,6*a, 7*a, 6*a, 5*a, 3*a, 2*a, a ]);
+        b = 1/16.0
+        yy = np.array(
+            [2*b, b,    2*b,  2*b,  b,    2*b,  3*b,  5*b,   6*b, 7*b, 6*b, 6*b,   7*b,
+             9*b, 10*b, 10*b,  9*b, 10*b, 11*b, 13*b, 14*b, 15*b, 14*b, 14*b, 15*b, 14*b, 13*b, 11*b, 10*b,
+             10*b, 11*b, 13*b, 14*b, 15*b, 14*b, 14*b, 15*b, 14*b,  13*b, 11*b, 10*b, 9*b, 10*b, 10*b, 9*b,
+             7*b, 6*b, 6*b, 7*b, 6*b, 5*b, 3*b,  2*b, b,  2*b, 2*b, b, 2*b]);
+
+        num = len(xx)
+
+        if (plotOrNot):
+            plt.plot(xx, yy, '-*')
+            plt.ylim([-0.5, 1.5])
+            plt.xlim([-1, 1])
+            plt.show()
+
+        return num, xx, yy
 
 def candle():
     xx = np.array([-0.5, -0.2, -0.2, -0.45, -0.5, -0.2, -0.2, -0.5, -0.48, -0.38, -0.375, -0.25, -0.245, -0.13, -0.125, -0.05, -0.045, 0.045, 0.05, 0.125, 0.13, 0.245, 0.25,
@@ -945,16 +993,17 @@ class Parachute:
 
 
 cl = 0.01
-#num,x,y = hilbertCurve(2,1,1)
-#num,x,y = sFolding(2,1.0,1.0)
+#num,x,y = hilbertCurve(3,1,1)
+num,x,y = sFolding(2,1.0,1.0)
 #num,x,y = candle( )
 #num,x,y = zCurve(0.5,1e-3)
 #num, x,y = straightLine(2)
-num,x,y = nCurve(1.0,1.0)
-
+#num,x,y = nCurve(1.0,1.0)
+#num,x,y = sinCurve(True)
+#num, x, y = Sierpinski()
 x,y = curveScaleByLength(x,y,1.6, True)
 nPoints, xArray, yArray = curveRefine(num,x,y, cl,False, True)
-nPoints,xArray, yArray  = roundCorner(nPoints, xArray, yArray, k=5, plotOrNot=True)
+#nPoints,xArray, yArray  = roundCorner(nPoints, xArray, yArray, k=5, plotOrNot=True)
 
 
 #nPoints, xArray, yArray = straightLine(100)
