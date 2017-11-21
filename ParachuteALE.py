@@ -317,7 +317,7 @@ def roundCorner(num, xx, yy, k, plotOrNot):
         plt.ylim([-0.5,1.5])
         plt.xlim([-1,1])
         plt.show()
-    return nPoints, xArray, yArray
+    return new_num, new_xx, new_yy
 ###########################################################################################################################
 ###########################################################################################################################
 #Start to generate AEROS and Mathcer input file
@@ -946,11 +946,11 @@ class Parachute:
 
 cl = 0.01
 #num,x,y = hilbertCurve(2,1,1)
-num,x,y = sFolding(2,1.0,1.0)
+#num,x,y = sFolding(2,1.0,1.0)
 #num,x,y = candle( )
 #num,x,y = zCurve(0.5,1e-3)
 #num, x,y = straightLine(2)
-#num,x,y = nCurve(1.0,1.0)
+num,x,y = nCurve(1.0,1.0)
 
 x,y = curveScaleByLength(x,y,1.6, True)
 nPoints, xArray, yArray = curveRefine(num,x,y, cl,False, True)
