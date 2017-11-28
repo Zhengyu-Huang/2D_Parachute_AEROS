@@ -67,6 +67,33 @@ def Sierpinski(n=2,plotOrNot=True):
 
         return num, xx, yy
 
+def Moore(n=2, plotOrNot=True):
+    if (n == 2):
+        a = 1 / 7.0
+        xx = np.array(
+            [-0.5*a, -0.5 * a, -1.5 * a, -1.5 * a, -2.5 * a, -3.5 * a, -3.5 * a, -2.5 * a, -2.5 * a, -3.5 * a, -3.5 * a, -2.5 * a, -1.5 * a,
+             -1.5 * a, -0.5 * a, -0.5 * a, -0.5 * a, -0.5 * a, -1.5 * a, -1.5 * a, -2.5 * a, -3.5 * a, -3.5 * a, -2.5 * a, -2.5 * a, -3.5 * a, -3.5 * a, -2.5 * a,
+             -1.5 * a, -1.5 * a, -0.5*a, -0.5*a,
+             0.5*a, 0.5 * a, 1.5 * a, 1.5 * a, 2.5 * a, 3.5 * a, 3.5 * a, 2.5 * a, 2.5 * a, 3.5 * a, 3.5 * a, 2.5 * a, 1.5 * a, 1.5 * a, 0.5 * a, 0.5 * a, 0.5 * a,0.5 * a,
+             1.5 * a, 1.5 * a, 2.5 * a, 3.5 * a, 3.5 * a, 2.5 * a, 2.5 * a, 3.5 * a, 3.5 * a, 2.5 * a, 1.5 * a, 1.5 * a, 0.5*a, 0.5*a]);
+        b = 1 / 8.0
+        yy = np.array(
+            [0, b, b, 0, 0, 0, b,  b, 2 * b, 2 * b, 3 * b, 3 * b, 3 * b, 2 * b, 2 * b,
+             3 * b, 4 * b, 5 * b, 5 * b, 4 * b, 4 * b, 4 * b, 5 * b, 5 * b, 6 * b, 6 * b, 7 * b, 7 * b, 7 * b, 6 * b, 6 * b, 7*b,
+             7 * b, 6 * b, 6 * b, 7 * b, 7 * b, 7 * b, 6 * b, 6 * b, 5 * b, 5 * b, 4 * b, 4 * b, 4 * b,
+             5 * b, 5 * b, 4 * b, 3*b,
+             2 * b, 2 * b, 3 * b, 3 * b, 3 * b, 2 * b, 2 * b, b, b, 0, 0, 0, b, b, 0]);
+
+        num = len(xx)
+
+        if (plotOrNot):
+            plt.plot(xx, yy, '-*')
+            plt.ylim([-0.5, 1.5])
+            plt.xlim([-1, 1])
+            plt.show()
+
+        return num, xx, yy
+
 
 #This is a straight line
 #int  nPoints, number of nodes
@@ -1082,11 +1109,12 @@ cl = 0.01
 #num,x,y = hilbertCurve(2,1,1)
 #num,x,y = sFolding(2,1.0,1.0)
 #num,x,y = candle( )
+num,x,y = Moore(2,True )
 #num,x,y = zCurve(0.5,1e-3)
 #num, x,y = straightLine(2)
 #num,x,y = nCurve(1.0,1.0)
-#x,y = curveScaleByLength(x,y,1.6, True)
-num,x,y = sinCurve(True)
+x,y = curveScaleByLength(x,y,1.6, True)
+#num,x,y = sinCurve(True)
 nPoints, xArray, yArray = curveRefine(num,x,y, cl,False, True)
 
 #nPoints, xArray, yArray = curveRefine(num,x,y, cl,False, True)
